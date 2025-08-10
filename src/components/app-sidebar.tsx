@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import * as React from "react"
 import {
   IconCamera,
@@ -42,17 +43,17 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
       title: "Lifecycle",
-      url: "#",
+      url: "/lifecycle",
       icon: IconListDetails,
     },
     {
       title: "Analytics",
-      url: "#",
+      url: "analytic",
       icon: IconChartBar,
     },
     {
@@ -161,8 +162,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <Image
+                  src="/shadcn.ico" 
+                  alt=""     // Path is relative to the `public` folder
+                  width={20}           // Adjust size as needed
+                  height={20}
+                  className="rounded"  // Optional styling
+                />
+                <span className="text-base font-semibold">Ext</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
