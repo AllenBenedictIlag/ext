@@ -1,6 +1,6 @@
 "use client"
 import { usePathname } from "next/navigation"
-import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react"
+import { type Icon } from "@tabler/icons-react"
 import Link from "next/link"
 import {
   SidebarGroup,
@@ -9,8 +9,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-
-
 
 export function NavMain({
   items,
@@ -30,7 +28,6 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => {
             const isActive = pathname === item.url || (item.url !== "/" && pathname?.startsWith(item.url))
-
             return (
             <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton 
@@ -41,10 +38,8 @@ export function NavMain({
                 }
                 >
                   <Link href={item.url} passHref>
-                    <div className="flex items-center gap-2">
                       {item.icon && <item.icon />}
                       <span>{item.title}</span>
-                    </div>
                   </Link>
                 </SidebarMenuButton>
              

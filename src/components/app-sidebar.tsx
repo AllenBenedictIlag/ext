@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import * as React from "react"
+
 import {
   IconChartBar,
   IconDashboard,
@@ -27,7 +28,7 @@ const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "/images/black.jpg",
   },
   navMain: [
     {
@@ -60,6 +61,7 @@ const data = {
   ],
 }
 
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -71,14 +73,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-                <Image
-                  src="/shadcn.ico" 
-                  alt=""     // Path is relative to the `public` folder
-                  width={20}           // Adjust size as needed
-                  height={20}
-                  className="rounded"  // Optional styling
+                <Image src="/images/black.jpg" alt="" width={20} height={20} className="rounded"
                 />
-                <span className="text-base font-semibold">Ext</span>
+                <span className="text-base font-semibold"> E X T </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
