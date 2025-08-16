@@ -72,10 +72,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
-                <Image src="/images/black.jpg" alt="" width={20} height={20} className="rounded"
+              <a href="#" className="flex items-center gap-2 sm:gap-2.5">
+                <img
+                  src="/images/black.png"
+                  alt="EXT logo"
+                  className="dark:hidden object-contain w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
                 />
-                <span className="text-base font-semibold"> E X T </span>
+                <img
+                  src="/images/white.png"
+                  srcSet="/images/white.png 1x, /images/white@2x.png 2x"
+                  alt="EXT logo (dark)"
+                  className="hidden dark:block object-contain w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
+                />
+                <span className="font-semibold text-sm sm:text-base md:text-lg"> E X T </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
