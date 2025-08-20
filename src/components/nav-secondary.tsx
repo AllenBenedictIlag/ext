@@ -7,6 +7,7 @@ import Link from "next/link"
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -27,6 +28,7 @@ export function NavSecondary({
 
   return (
     <SidebarGroup {...props}>
+      <SidebarGroupLabel>Others</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {

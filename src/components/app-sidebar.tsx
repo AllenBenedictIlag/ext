@@ -1,19 +1,7 @@
+// components/app-sidebar.tsx
 "use client"
 
-import Image from "next/image"
 import * as React from "react"
-
-import {
-  IconChartBar,
-  IconDashboard,
-  IconSettings,
-  IconUsers,
-  IconMessageQuestion
-} from "@tabler/icons-react"
-
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -24,54 +12,32 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const data = {
-  user: {
+import { NavMain } from "@/components/nav-main"
+import { NavUser } from "@/components/nav-user"
+import { SECTIONS_ADMIN, SECTIONS_SUPERADMIN } from "@/lib/modules"   // ✅ import your nav config
+
+type Props = React.ComponentProps<typeof Sidebar> & {
+  role: "admin" | "superadmin"
+}
+
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const user = {
     name: "shadcn",
     email: "m@example.com",
     avatar: "/images/black.jpg",
-  },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Analytics",
-      url: "/analytics",
-      icon: IconChartBar,
-    },
-    {
-      title: "User Management",
-      url: "/users",
-      icon: IconUsers,
-    },
-    {
-      title: "Question Management",
-      url: "/questions",
-      icon: IconMessageQuestion,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: IconSettings,
-    },
-  ],
-}
+  }
+  
+  // Determine sections based on user role SECTIONS_ADMIN || SECTIONS_SUPERADMIN
+  const sections = SECTIONS_SUPERADMIN
 
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
+      {/* Header / Logo */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
+            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="#" className="flex items-center gap-2 sm:gap-2.5">
                 <img
                   src="/images/black.png"
@@ -90,12 +56,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      {/* Main nav content (driven by modules.ts) */}
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain sections={sections}/>
       </SidebarContent>
+
+      {/* User footer */}
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )

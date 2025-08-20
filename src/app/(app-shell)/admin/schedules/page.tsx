@@ -1,4 +1,4 @@
-export default function UsersPage(){
+export default function SchedulesPage(){
     return (
         <div className="p-6 text-muted-foreground">
           {/* This will just render empty space for now */}
