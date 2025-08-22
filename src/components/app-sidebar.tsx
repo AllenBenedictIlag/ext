@@ -28,7 +28,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   }
   
   // Determine sections based on user role SECTIONS_ADMIN || SECTIONS_SUPERADMIN
-  const sections = SECTIONS_SUPERADMIN
+  const sections = SECTIONS_ADMIN
 
 
   return (
