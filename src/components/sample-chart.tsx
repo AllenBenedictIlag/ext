@@ -21,12 +21,12 @@ import {
 export const description = "A bar chart with a custom label"
 
 const chartData = [
-  { month: "Engineering", current: 80, before: 160 },
-  { month: "Marketing", current: 200, before: 305 },
-  { month: "Sales", current: 120, before: 237 },
-  { month: "Human Resources", current: 73, before: 190 },
-  { month: "Operations", current: 130, before: 209 },
-  { month: "Finance", current: 140, before: 214 },
+  { month: "Engineering", current: 64, before: 160 },
+  { month: "Marketing", current: 122, before: 305 },
+  { month: "Sales", current: 94, before: 237 },
+  { month: "Human Resources", current: 76, before: 190 },
+  { month: "Operations", current: 83, before: 209 },
+  { month: "Finance", current: 64, before: 214 },
   { month: "IT", current: 30, before: 214 },
 ]
 
@@ -46,7 +46,7 @@ export function ChartBarLabelCustom() {
     <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle>Exits by Department</CardTitle>
-        <CardDescription>Up to current FY vs Last FY</CardDescription>
+        <CardDescription>Current FY vs Last FY</CardDescription>
       </CardHeader>
 
       <CardContent className="relative flex-1 min-h-0 p-0">
