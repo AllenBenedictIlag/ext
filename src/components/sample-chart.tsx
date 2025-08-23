@@ -1,6 +1,6 @@
 "use client"
 
-import { TrendingUp } from "lucide-react"
+import { TrendingDown } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 
 import {
@@ -21,13 +21,13 @@ import {
 export const description = "A bar chart with a custom label"
 
 const chartData = [
-  { month: "Engineering", before: 160, current: 80 },
-  { month: "Marketing", before: 305, current: 200 },
-  { month: "Sales", before: 237, current: 120 },
-  { month: "Human Resources", before: 73, current: 190 },
-  { month: "Operations", before: 209, current: 130 },
-  { month: "Finance", before: 214, current: 140 },
-  { month: "IT", before: 214, current: 30 },
+  { month: "Engineering", current: 80, before: 160 },
+  { month: "Marketing", current: 200, before: 305 },
+  { month: "Sales", current: 120, before: 237 },
+  { month: "Human Resources", current: 73, before: 190 },
+  { month: "Operations", current: 130, before: 209 },
+  { month: "Finance", current: 140, before: 214 },
+  { month: "IT", current: 30, before: 214 },
 ]
 
 const chartConfig = {
@@ -39,85 +39,90 @@ const chartConfig = {
     label: "Current",
     color: "var(--chart-5)",
   },
-  label: {
-    color: "var(--background)",
-  },
 } satisfies ChartConfig
 
 export function ChartBarLabelCustom() {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
-        <CardTitle>Comparison — Exits by Department</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+        <CardTitle>Exits by Department</CardTitle>
+        <CardDescription>Up to current FY vs Last FY</CardDescription>
       </CardHeader>
+
       <CardContent className="relative flex-1 min-h-0 p-0">
-      <div className="absolute inset-0">
-        <ChartContainer config={chartConfig}>
-          <BarChart className= "h-full w-full"
-            accessibilityLayer
-            data={chartData}
-            layout="vertical"
-            margin={{
-              top: 0, right: 16, bottom: 0, left: 24
-            }}
-          >
-            <CartesianGrid horizontal={false} />
-            <YAxis
-              dataKey="month"
-              type="category"
-              tickLine={false}
-              tickMargin={10}
-              axisLine={false}
-              tickFormatter={(value) => value.slice(0, 3)}
-              hide
-            />
-            <XAxis type="number" hide />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
-            />
-            <Bar
-              dataKey="before"
-              stackId="a"
+        <div className="absolute inset-0">
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <BarChart
+              data={chartData}
               layout="vertical"
-              fill="var(--color-before)"
-              radius={[0, 0, 0, 0]}
-              >
-              <LabelList
+              margin={{ top: 0, right: 16, bottom: 0, left: 24 }}
+              barCategoryGap="18%"
+              barGap={0}
+            >
+              <CartesianGrid horizontal={false} />
+              {/* overlapped Y axes just to line bars up */}
+              <YAxis yAxisId="before" dataKey="month" type="category" hide />
+              <YAxis yAxisId="current" dataKey="month" type="category" hide />
+              <XAxis type="number" hide />
+
+              {/* Theme-matching tooltip */}
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    indicator="dot"
+                    className="bg-background text-foreground border-border"
+                    labelClassName="text-muted-foreground"
+                  />
+                }
+              />
+
+              {/* TOP: Current */}
+              <Bar
+                yAxisId="current"
                 dataKey="current"
-                position="insideLeft"
-                offset={8}
-                className="fill-(--color-label)"
-                fontSize={12}
-              />
-            </Bar>
-
-
-            <Bar
-              dataKey="current"
-              stackId="a"
-              fill="var(--color-current)"
-              radius={[0, 4, 4, 0]}
+                name="Current"
+                fill="var(--color-current)"
+                barSize={35}
+                radius={[0, 4, 4, 0]}
               >
-             <LabelList
+                {/* Light: use background (white). Dark: flip to foreground (light). */}
+                <LabelList
+                  dataKey="current"
+                  position="insideLeft"
+                  offset={8}
+                  className="fill-background dark:fill-foreground"
+                  fontSize={12}
+                />
+              </Bar>
+
+              {/* BACKGROUND: Before (wider) */}
+              <Bar
+                yAxisId="before"
                 dataKey="before"
-                position="right"
-                offset={8}
-                className="fill-foreground"
-                fontSize={12}
-              />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </div>
+                name="Before"
+                fill="var(--color-before)"
+                barSize={35}
+                radius={[0, 4, 4, 0]}
+                fillOpacity={0.35}
+              >
+                {/* Always readable on both themes */}
+                <LabelList
+                  dataKey="before"
+                  position="right"
+                  offset={8}
+                  className="fill-foreground"
+                  fontSize={12}
+                />
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </div>
       </CardContent>
+
       <CardFooter className="mt-auto flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">
-          Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="text-muted-foreground leading-none">
-          Showing total visitors for the last 6 months
+          Comparison per department from last FY <TrendingDown className="h-4 w-4" />
         </div>
       </CardFooter>
     </Card>

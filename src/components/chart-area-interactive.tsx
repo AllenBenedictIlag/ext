@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Card,
@@ -33,98 +32,99 @@ import {
 export const description = "An interactive area chart"
 
 const chartData = [
-  { date: "2024-04-01", before: 222, current: 150 },
-  { date: "2024-04-02", before: 97, current: 180 },
-  { date: "2024-04-03", before: 167, current: 120 },
-  { date: "2024-04-04", before: 242, current: 260 },
-  { date: "2024-04-05", before: 373, current: 290 },
-  { date: "2024-04-06", before: 301, current: 340 },
-  { date: "2024-04-07", before: 245, current: 180 },
-  { date: "2024-04-08", before: 409, current: 320 },
-  { date: "2024-04-09", before: 59, current: 110 },
-  { date: "2024-04-10", before: 261, current: 190 },
-  { date: "2024-04-11", before: 327, current: 350 },
-  { date: "2024-04-12", before: 292, current: 210 },
-  { date: "2024-04-13", before: 342, current: 380 },
-  { date: "2024-04-14", before: 137, current: 220 },
-  { date: "2024-04-15", before: 120, current: 170 },
-  { date: "2024-04-16", before: 138, current: 190 },
-  { date: "2024-04-17", before: 446, current: 360 },
-  { date: "2024-04-18", before: 364, current: 410 },
-  { date: "2024-04-19", before: 243, current: 180 },
-  { date: "2024-04-20", before: 89, current: 150 },
-  { date: "2024-04-21", before: 137, current: 200 },
-  { date: "2024-04-22", before: 224, current: 170 },
-  { date: "2024-04-23", before: 138, current: 230 },
-  { date: "2024-04-24", before: 387, current: 290 },
-  { date: "2024-04-25", before: 215, current: 250 },
-  { date: "2024-04-26", before: 75, current: 130 },
-  { date: "2024-04-27", before: 383, current: 420 },
-  { date: "2024-04-28", before: 122, current: 180 },
-  { date: "2024-04-29", before: 315, current: 240 },
-  { date: "2024-04-30", before: 454, current: 380 },
-  { date: "2024-05-01", before: 165, current: 220 },
-  { date: "2024-05-02", before: 293, current: 310 },
-  { date: "2024-05-03", before: 247, current: 190 },
-  { date: "2024-05-04", before: 385, current: 420 },
-  { date: "2024-05-05", before: 481, current: 390 },
-  { date: "2024-05-06", before: 498, current: 520 },
-  { date: "2024-05-07", before: 388, current: 300 },
-  { date: "2024-05-08", before: 149, current: 210 },
-  { date: "2024-05-09", before: 227, current: 180 },
-  { date: "2024-05-10", before: 293, current: 330 },
-  { date: "2024-05-11", before: 335, current: 270 },
-  { date: "2024-05-12", before: 197, current: 240 },
-  { date: "2024-05-13", before: 197, current: 160 },
-  { date: "2024-05-14", before: 448, current: 490 },
-  { date: "2024-05-15", before: 473, current: 380 },
-  { date: "2024-05-16", before: 338, current: 400 },
-  { date: "2024-05-17", before: 499, current: 420 },
-  { date: "2024-05-18", before: 315, current: 350 },
-  { date: "2024-05-19", before: 235, current: 180 },
-  { date: "2024-05-20", before: 177, current: 230 },
-  { date: "2024-05-21", before: 82, current: 140 },
-  { date: "2024-05-22", before: 81, current: 120 },
-  { date: "2024-05-23", before: 252, current: 290 },
-  { date: "2024-05-24", before: 294, current: 220 },
-  { date: "2024-05-25", before: 201, current: 250 },
-  { date: "2024-05-26", before: 213, current: 170 },
-  { date: "2024-05-27", before: 420, current: 460 },
-  { date: "2024-05-28", before: 233, current: 190 },
-  { date: "2024-05-29", before: 78, current: 130 },
-  { date: "2024-05-30", before: 340, current: 280 },
-  { date: "2024-05-31", before: 178, current: 230 },
-  { date: "2024-06-01", before: 178, current: 200 },
-  { date: "2024-06-02", before: 470, current: 410 },
-  { date: "2024-06-03", before: 103, current: 160 },
-  { date: "2024-06-04", before: 439, current: 380 },
-  { date: "2024-06-05", before: 88, current: 140 },
-  { date: "2024-06-06", before: 294, current: 250 },
-  { date: "2024-06-07", before: 323, current: 370 },
-  { date: "2024-06-08", before: 385, current: 320 },
-  { date: "2024-06-09", before: 438, current: 480 },
-  { date: "2024-06-10", before: 155, current: 200 },
-  { date: "2024-06-11", before: 92, current: 150 },
-  { date: "2024-06-12", before: 492, current: 420 },
-  { date: "2024-06-13", before: 81, current: 130 },
-  { date: "2024-06-14", before: 426, current: 380 },
-  { date: "2024-06-15", before: 307, current: 350 },
-  { date: "2024-06-16", before: 371, current: 310 },
-  { date: "2024-06-17", before: 475, current: 520 },
-  { date: "2024-06-18", before: 107, current: 170 },
-  { date: "2024-06-19", before: 341, current: 290 },
-  { date: "2024-06-20", before: 408, current: 450 },
-  { date: "2024-06-21", before: 169, current: 210 },
-  { date: "2024-06-22", before: 317, current: 270 },
-  { date: "2024-06-23", before: 480, current: 530 },
-  { date: "2024-06-24", before: 132, current: 180 },
-  { date: "2024-06-25", before: 141, current: 190 },
-  { date: "2024-06-26", before: 434, current: 380 },
-  { date: "2024-06-27", before: 448, current: 490 },
-  { date: "2024-06-28", before: 149, current: 200 },
-  { date: "2024-06-29", before: 103, current: 160 },
-  { date: "2024-06-30", before: 446, current: 400 },
-]
+  { date: "2024-04-01", before: 31, current: 32 },
+  { date: "2024-04-02", before: 34, current: 35 },
+  { date: "2024-04-03", before: 37, current: 37 },
+  { date: "2024-04-04", before: 39, current: 40 },
+  { date: "2024-04-05", before: 44, current: 43 },
+  { date: "2024-04-06", before: 49, current: 49 },
+  { date: "2024-04-07", before: 49, current: 51 },
+  { date: "2024-04-08", before: 53, current: 53 },
+  { date: "2024-04-09", before: 49, current: 51 },
+  { date: "2024-04-10", before: 52, current: 53 },
+  { date: "2024-04-11", before: 52, current: 55 },
+  { date: "2024-04-12", before: 55, current: 53 },
+  { date: "2024-04-13", before: 55, current: 52 },
+  { date: "2024-04-14", before: 54, current: 53 },
+  { date: "2024-04-15", before: 56, current: 57 },
+  { date: "2024-04-16", before: 61, current: 59 },
+  { date: "2024-04-17", before: 66, current: 63 },
+  { date: "2024-04-18", before: 64, current: 63 },
+  { date: "2024-04-19", before: 67, current: 69 },
+  { date: "2024-04-20", before: 68, current: 67 },
+  { date: "2024-04-21", before: 71, current: 71 },
+  { date: "2024-04-22", before: 73, current: 75 },
+  { date: "2024-04-23", before: 76, current: 76 },
+  { date: "2024-04-24", before: 79, current: 82 },
+  { date: "2024-04-25", before: 83, current: 85 },
+  { date: "2024-04-26", before: 87, current: 85 },
+  { date: "2024-04-27", before: 85, current: 86 },
+  { date: "2024-04-28", before: 88, current: 92 },
+  { date: "2024-04-29", before: 91, current: 94 },
+  { date: "2024-04-30", before: 89, current: 90 },
+  { date: "2024-05-01", before: 95, current: 96 },
+  { date: "2024-05-02", before: 95, current: 96 },
+  { date: "2024-05-03", before: 99, current: 98 },
+  { date: "2024-05-04", before: 102, current: 101 },
+  { date: "2024-05-05", before: 103, current: 103 },
+  { date: "2024-05-06", before: 101, current: 103 },
+  { date: "2024-05-07", before: 105, current: 105 },
+  { date: "2024-05-08", before: 112, current: 109 },
+  { date: "2024-05-09", before: 113, current: 112 },
+  { date: "2024-05-10", before: 116, current: 113 },
+  { date: "2024-05-11", before: 112, current: 113 },
+  { date: "2024-05-12", before: 112, current: 115 },
+  { date: "2024-05-13", before: 114, current: 114 },
+  { date: "2024-05-14", before: 116, current: 119 },
+  { date: "2024-05-15", before: 119, current: 120 },
+  { date: "2024-05-16", before: 126, current: 125 },
+  { date: "2024-05-17", before: 125, current: 124 },
+  { date: "2024-05-18", before: 132, current: 132 },
+  { date: "2024-05-19", before: 136, current: 136 },
+  { date: "2024-05-20", before: 138, current: 134 },
+  { date: "2024-05-21", before: 141, current: 143 },
+  { date: "2024-05-22", before: 145, current: 143 },
+  { date: "2024-05-23", before: 147, current: 146 },
+  { date: "2024-05-24", before: 149, current: 151 },
+  { date: "2024-05-25", before: 153, current: 150 },
+  { date: "2024-05-26", before: 156, current: 154 },
+  { date: "2024-05-27", before: 155, current: 155 },
+  { date: "2024-05-28", before: 159, current: 162 },
+  { date: "2024-05-29", before: 167, current: 165 },
+  { date: "2024-05-30", before: 168, current: 167 },
+  { date: "2024-05-31", before: 169, current: 168 },
+  { date: "2024-06-01", before: 168, current: 171 },
+  { date: "2024-06-02", before: 174, current: 174 },
+  { date: "2024-06-03", before: 175, current: 175 },
+  { date: "2024-06-04", before: 175, current: 176 },
+  { date: "2024-06-05", before: 181, current: 182 },
+  { date: "2024-06-06", before: 182, current: 183 },
+  { date: "2024-06-07", before: 183, current: 181 },
+  { date: "2024-06-08", before: 181, current: 183 },
+  { date: "2024-06-09", before: 185, current: 185 },
+  { date: "2024-06-10", before: 189, current: 189 },
+  { date: "2024-06-11", before: 191, current: 190 },
+  { date: "2024-06-12", before: 193, current: 190 },
+  { date: "2024-06-13", before: 196, current: 193 },
+  { date: "2024-06-14", before: 195, current: 194 },
+  { date: "2024-06-15", before: 198, current: 200 },
+  { date: "2024-06-16", before: 202, current: 204 },
+  { date: "2024-06-17", before: 203, current: 203 },
+  { date: "2024-06-18", before: 210, current: 209 },
+  { date: "2024-06-19", before: 214, current: 214 },
+  { date: "2024-06-20", before: 218, current: 218 },
+  { date: "2024-06-21", before: 219, current: 220 },
+  { date: "2024-06-22", before: 226, current: 224 },
+  { date: "2024-06-23", before: 231, current: 229 },
+  { date: "2024-06-24", before: 229, current: 230 },
+  { date: "2024-06-25", before: 235, current: 238 },
+  { date: "2024-06-26", before: 241, current: 238 },
+  { date: "2024-06-27", before: 242, current: 239 },
+  { date: "2024-06-28", before: 246, current: 244 },
+  { date: "2024-06-29", before: 248, current: 247 },
+  { date: "2024-06-30", before: 247, current: 247 }
+];
+
 
 const chartConfig = {
   visitors: {
@@ -153,7 +153,7 @@ export function ChartAreaInteractive() {
   const filteredData = chartData.filter((item) => {
     const date = new Date(item.date)
     const referenceDate = new Date("2024-06-30")
-    let daysToSubtract = 90
+    let daysToSubtract = 90 //90 default
     if (timeRange === "30d") {
       daysToSubtract = 30
     } else if (timeRange === "7d") {
@@ -168,12 +168,12 @@ export function ChartAreaInteractive() {
     <Card className="@container/card">
       <CardHeader>
         <CardTitle>Resignees per Month</CardTitle>
-        {/* <CardDescription>
+        <CardDescription>
           <span className="hidden @[540px]/card:block">
             Total for the last 3 months
           </span>
           <span className="@[540px]/card:hidden">Last 3 months</span>
-        </CardDescription> */}
+        </CardDescription>
         <CardAction>
           {/* <ToggleGroup
             type="single"
@@ -273,15 +273,15 @@ export function ChartAreaInteractive() {
               dataKey="current"
               type="natural"
               fill="url(#fillcurrent)"
-              stroke="var(--color-current)"
-              stackId="a"
+              stroke="var(--color-chart3)"
+              // stackId="a"
             />
             <Area
               dataKey="before"
               type="natural"
               fill="url(#fillbefore)"
-              stroke="var(--color-before)"
-              stackId="a"
+              stroke="var(--color-orange-chart3)"
+              // stackId="a"
             />
           </AreaChart>
         </ChartContainer>

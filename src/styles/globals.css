@@ -44,7 +44,6 @@ html { font-size: 18px; }
   --font-serif: Source Serif 4, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.375rem;
-
  
   --shadow-2xs: -1px 1px 7px 0px hsl(196.6949 85.4389% 14.5510% / 0.05);
   --shadow-xs:  -1px 1px 7px 0px hsl(196.6949 85.4389% 14.5510% / 0.05);
