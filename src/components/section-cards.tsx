@@ -79,7 +79,7 @@ export function SectionCards() {
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Would Recommend</CardDescription>
+          <CardDescription>Recommend (Yes)</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
           72%
           </CardTitle>
