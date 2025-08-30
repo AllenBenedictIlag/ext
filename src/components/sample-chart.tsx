@@ -1,5 +1,5 @@
 "use client"
-
+import "../styles/globals.css"
 import { TrendingDown } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 
@@ -43,7 +43,7 @@ const chartConfig = {
 
 export function ChartBarLabelCustom() {
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col ">
       <CardHeader>
         <CardTitle>Exits by Department</CardTitle>
         <CardDescription>Current FY vs Last FY</CardDescription>
@@ -82,7 +82,7 @@ export function ChartBarLabelCustom() {
                 yAxisId="current"
                 dataKey="current"
                 name="Current"
-                fill="var(--color-current)"
+                fill="var(--chart-1)"
                 barSize={35}
                 radius={[0, 4, 4, 0]}
               >
@@ -101,7 +101,7 @@ export function ChartBarLabelCustom() {
                 yAxisId="before"
                 dataKey="before"
                 name="Before"
-                fill="var(--color-before)"
+                fill="var(--chart-5)"
                 barSize={35}
                 radius={[0, 4, 4, 0]}
                 fillOpacity={0.35}
