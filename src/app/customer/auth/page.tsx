@@ -148,7 +148,7 @@ export default function FeedbackAuthPage() {
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 <span className="font-extrabold">Coffee Crave </span> - Your Opinion Matters
               </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground text-justify">
                 With your suggestions, we can improve the Coffee Crave
                 experience. Please be advised that Coffee Crave will use the
                 responses you provide in this survey to better understand,
@@ -213,7 +213,7 @@ export default function FeedbackAuthPage() {
                             <DialogTitle>Privacy &amp; Data Use</DialogTitle>
                           </DialogHeader>
                           <ScrollArea className="max-h-[55vh] pr-2">
-                            <div className="space-y-3 text-sm leading-relaxed">
+                            <div className="mb-5 mt-3 space-y-3 text-sm leading-relaxed text-justify">
                               <p>
                                 By participating in this Customer Feedback Survey, you may be
                                 asked to provide personal information such as your name,
@@ -222,8 +222,9 @@ export default function FeedbackAuthPage() {
                                 purposes, including contacting you for additional feedback,
                                 sharing relevant updates about our business (with your
                                 consent), and producing aggregated, anonymous data for
-                                statistical analysis and insights.
+                                statistical analysis and insights. <br/><br/>
                               </p>
+
                               <p>
                                 We are committed to protecting your privacy and ensuring that
                                 your information remains confidential and secure. Your
