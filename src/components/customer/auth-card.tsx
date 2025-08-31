@@ -1,4 +1,3 @@
-// app/customer/auth/components/CustomerAuthCard.tsx
 "use client";
 
 import * as React from "react";
@@ -78,7 +77,7 @@ export function CustomerAuthCard() {
       if (data.state === "used") {
         setUsedMessage(
           data.message ||
-            "It seems you've already provided your feedback — we appreciate it! Here is the summary of your feedback:"
+            "It seems you've already provided your feedback — we appreciate it! Here is the summary of your feedback:",
         );
         setUsedRedirect(data.redirect ?? `/feedback/summary?code=${encodeURIComponent(code)}`);
         setUsedOpen(true); // show popup instead of redirecting
@@ -86,7 +85,12 @@ export function CustomerAuthCard() {
       }
 
       // ok
-      router.push(data.redirect ?? `/feedback/form?code=${encodeURIComponent(code)}`);
+      const target =
+        data.redirect && data.redirect.startsWith("/")
+          ? data.redirect
+          : `/customer/feedback?code=${encodeURIComponent(code)}`;
+
+      router.push(target);
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");
@@ -105,8 +109,6 @@ export function CustomerAuthCard() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">{usedMessage}</p>
-
-            {/* Placeholder summary (static for now, per requirement) */}
             <div className="rounded-lg border bg-muted/30 p-3 text-sm">
               <p className="font-medium">Summary (demo)</p>
               <ul className="mt-2 list-disc pl-5 text-muted-foreground">
@@ -115,7 +117,6 @@ export function CustomerAuthCard() {
                 <li>Comments: “Great service, would recommend!”</li>
               </ul>
             </div>
-
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setUsedOpen(false)}>
                 Close
@@ -188,11 +189,26 @@ export function CustomerAuthCard() {
                       <DialogTitle>Privacy &amp; Data Use</DialogTitle>
                     </DialogHeader>
                     <ScrollArea className="max-h-[55vh] pr-2">
-                    <div className="mb-5 mt-3 space-y-3 text-sm leading-relaxed text-justify"> 
-                        <p> By participating in this Customer Feedback Survey, you may be asked to provide personal information such as your name, contact number, and email address. This information is collected voluntarily and will only be used for specific purposes, including contacting you for additional feedback, sharing relevant updates about our business (with your consent), and producing aggregated, anonymous data for statistical analysis and insights. <br/><br/> </p>
-                        
-                        <p> We are committed to protecting your privacy and ensuring that your information remains confidential and secure. Your personal data will never be sold, shared, or disclosed to third parties without your explicit consent, unless required by law. All personal information will be retained only as long as necessary for the purposes stated above and will be securely deleted thereafter. By participating in this survey, you confirm that you understand and agree to the above terms. </p> 
-                    </div>
+                      <div className="mb-5 mt-3 space-y-3 text-sm leading-relaxed text-justify">
+                        <p>
+                          By participating in this Customer Feedback Survey, you may be asked to
+                          provide personal information such as your name, contact number, and email
+                          address. This information is collected voluntarily and will only be used
+                          for specific purposes, including contacting you for additional feedback,
+                          sharing relevant updates about our business (with your consent), and
+                          producing aggregated, anonymous data for statistical analysis and
+                          insights.
+                        </p>
+                        <p>
+                          We are committed to protecting your privacy and ensuring that your
+                          information remains confidential and secure. Your personal data will never
+                          be sold, shared, or disclosed to third parties without your explicit
+                          consent, unless required by law. All personal information will be retained
+                          only as long as necessary for the purposes stated above and will be
+                          securely deleted thereafter. By participating in this survey, you confirm
+                          that you understand and agree to the above terms.
+                        </p>
+                      </div>
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>

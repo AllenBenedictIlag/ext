@@ -13,7 +13,8 @@ import { getPool } from "@/lib/database";
  * If you store UTC timestamps, replace NOW() with UTC_TIMESTAMP().
  */
 
-const FORM_PATH = "/feedback/form";
+// ✅ Always use a leading slash for absolute paths
+const FORM_PATH = "/customer/feedback";
 const SUMMARY_PATH = "/feedback/summary";
 
 const bodySchema = z.object({
