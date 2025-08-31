@@ -40,13 +40,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="#" className="flex items-center gap-2 sm:gap-2.5">
                 <img
-                  src="/images/cc-bg-white.png"
-                  alt="EXT logo"
+                  src="/images/coffee-black.png"
+                  alt=""
                   className="dark:hidden object-contain w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
                 />
                 <img
-                  src="/images/white.png"
-                  alt="EXT logo (dark)"
+                  src="/images/coffee-white.png"
+                  alt=""
                   className="hidden dark:block object-contain w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
                 />
                 <span className="font-semibold text-sm sm:text-base md:text-lg">Coffee Craves</span>
