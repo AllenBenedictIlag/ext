@@ -8,7 +8,7 @@ html { font-size: 18px; }
 
 
 :root {
-  --background: oklch(1.0000 0 0);
+  --background: oklch(0.9731 0 0);
   --foreground: oklch(0.2686 0 0);
   --card: oklch(1.0000 0 0);
   --card-foreground: oklch(0.2686 0 0);
@@ -41,7 +41,7 @@ html { font-size: 18px; }
   --sidebar-border: oklch(0.9276 0.0058 264.5313);
   --sidebar-ring: oklch(0.7686 0.1647 70.0804);
 
-  --font-sans: Inter, sans-serif;
+  --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Source Serif 4, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.375rem;
@@ -61,7 +61,7 @@ html { font-size: 18px; }
 }
 
 .dark {
-  --background: oklch(0.2264 0 0);
+  --background: oklch(0.2090 0 0);
   --foreground: oklch(0.9219 0 0);
   --card: oklch(0.2686 0 0);
   --card-foreground: oklch(0.9219 0 0);
@@ -93,7 +93,7 @@ html { font-size: 18px; }
   --sidebar-accent-foreground: oklch(0.9243 0.1151 95.7459);
   --sidebar-border: oklch(0.3715 0 0);
   --sidebar-ring: oklch(0.7686 0.1647 70.0804);
-  --font-sans: Inter, sans-serif;
+  --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Source Serif 4, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.375rem;
@@ -166,4 +166,60 @@ html { font-size: 18px; }
 
 @layer base {
   * { @apply border-border outline-ring/50; }
+}
+
+@layer components {
+  /* Base halo button using your theme colors */
+  .btn-halo {
+    /* pick the color once; change to var(--accent) if you prefer */
+    --halo: var(--ring);
+
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(2 * var(--spacing));
+    padding: calc(2 * var(--spacing)) calc(5 * var(--spacing));
+    border-radius: var(--radius-xl);
+    border: 2px solid color-mix(in oklch, var(--halo) 70%, var(--border));
+    background: color-mix(in oklch, var(--halo) 12%, var(--card));
+    color: var(--foreground);
+    text-decoration: none;
+    transition: background-color .15s ease, box-shadow .15s ease, transform .05s ease;
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--halo) 18%, transparent);
+  }
+  .btn-halo:hover {
+    background: color-mix(in oklch, var(--halo) 20%, var(--card));
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--halo) 25%, transparent);
+  }
+  .btn-halo:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 6px color-mix(in oklch, var(--halo) 30%, transparent),
+      0 1px 2px rgba(0,0,0,.05);
+  }
+  .btn-halo:active { transform: translateY(1px); }
+  .btn-halo:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* subtle inner ring */
+  .btn-halo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--halo) 40%, transparent);
+    opacity: 0;
+    transition: opacity .2s ease;
+    pointer-events: none;
+  }
+  .btn-halo:hover::after,
+  .btn-halo:focus-visible::after { opacity: 1; }
+
+  /* Emphasized primary action */
+  .btn-halo--emph { font-weight: 600; }
+
+  /* Optional: accent variant */
+  .btn-halo-accent { --halo: var(--accent); }
+}
+@layer utilities {
+  .tracking-normal { letter-spacing: var(--tracking-normal); }
 }

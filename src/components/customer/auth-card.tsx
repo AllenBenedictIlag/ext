@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 
+
 const CODE_PATTERN = /^[A-Z0-9-]{4,64}$/; // matches RCP-2025-0001
 
 type VerifyResponse =
@@ -101,6 +102,7 @@ export function CustomerAuthCard() {
 
   return (
     <>
+     
       {/* USED POPUP (only here) */}
       <Dialog open={usedOpen} onOpenChange={setUsedOpen}>
         <DialogContent className="sm:max-w-lg">

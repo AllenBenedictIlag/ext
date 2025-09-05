@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       {/* Use your design tokens via Tailwind utilities */}
-      <body className="bg-background text-foreground font-sans antialiased">
+      <body className="bg-sidebar text-foreground font-sans antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -24,7 +24,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const user = {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/images/black.jpg",
+    avatar: "/images/coffee-black.png",
   }
   
   // Determine sections based on user role SECTIONS_ADMIN || SECTIONS_SUPERADMIN
