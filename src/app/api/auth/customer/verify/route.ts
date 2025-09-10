@@ -2,17 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
 
-/**
- * Outcomes:
- * - invalid : no row
- * - expired : row exists and expires_at < NOW()
- * - used    : row exists and used_at IS NOT NULL
- * - ok      : row exists, not expired, not used
- *
- * If you store UTC timestamps, replace NOW() with UTC_TIMESTAMP().
- */
-
-// ✅ Always use a leading slash for absolute paths
 const FORM_PATH = "/customer/feedback";
 const SUMMARY_PATH = "/feedback/summary";
 
@@ -29,18 +18,14 @@ export async function POST(req: Request) {
 
     const pool = getPool();
 
-    // Fetch the row (case-insensitive match)
+    // 1) fetch receipt row
     const [rows] = await pool.execute(
       `
       SELECT
-        id,
-        receipt_number,
-        issued_at,
-        expires_at,
-        used_at,
+        id, receipt_number, issued_at, expires_at, used_at,
         CASE
-          WHEN used_at IS NOT NULL THEN 'USED'
           WHEN expires_at IS NOT NULL AND expires_at < NOW() THEN 'EXPIRED'
+          WHEN used_at IS NOT NULL THEN 'USED'
           ELSE 'UNUSED'
         END AS status
       FROM receipts
@@ -68,17 +53,22 @@ export async function POST(req: Request) {
       );
     }
 
-    if (r.status === "EXPIRED") {
+    // 2) explicit expired check
+    if (r.expires_at && new Date(r.expires_at) < new Date()) {
       return NextResponse.json(
-        {
-          state: "expired" as VerifyState,
-          message: "This Survey ID has expired.",
-        },
-        { status: 410 }, // Gone
+        { state: "expired" as VerifyState, message: "This Survey ID has expired." },
+        { status: 410 },
       );
     }
 
-    if (r.status === "USED") {
+    // 3) also treat "already has a submission" as USED
+    const [subs] = await pool.execute(
+      `SELECT id FROM submissions WHERE receipt_id = ? LIMIT 1`,
+      [r.id],
+    );
+    const hasSubmission = Array.isArray(subs) && (subs as any[]).length > 0;
+
+    if (r.used_at || hasSubmission) {
       return NextResponse.json(
         {
           state: "used" as VerifyState,
@@ -86,16 +76,13 @@ export async function POST(req: Request) {
             "It seems you've already provided your feedback — we appreciate it! For now, we'll show your summary here.",
           redirect: `${SUMMARY_PATH}?code=${encodeURIComponent(code)}`,
         },
-        { status: 409 },
+        { status: 200 }, // OK is fine; your UI reads .state
       );
     }
 
-    // UNUSED → ok
+    // 4) OK → proceed
     return NextResponse.json(
-      {
-        state: "ok" as VerifyState,
-        redirect: `${FORM_PATH}?code=${encodeURIComponent(code)}`,
-      },
+      { state: "ok" as VerifyState, redirect: `${FORM_PATH}?code=${encodeURIComponent(code)}` },
       { status: 200 },
     );
   } catch (err: any) {

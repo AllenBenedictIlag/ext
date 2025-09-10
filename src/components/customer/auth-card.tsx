@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 
-
 const CODE_PATTERN = /^[A-Z0-9-]{4,64}$/; // matches RCP-2025-0001
 
 type VerifyResponse =
@@ -34,6 +33,19 @@ type VerifyResponse =
   | { state: "used"; message: string; redirect?: string }
   | { state: "ok"; redirect?: string };
 
+type Summary = {
+  receipt_code: string;
+  submission: { id: number; survey_id: number; submitted_at: string };
+  answers: Array<{
+    key: string;
+    prompt: string;
+    type: "LIKERT" | "YES_NO" | "TEXT";
+    display_order: number;
+    value: string | null;
+    raw: any;
+  }>;
+};
+
 export function CustomerAuthCard() {
   const router = useRouter();
   const [code, setCode] = React.useState("");
@@ -41,10 +53,11 @@ export function CustomerAuthCard() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // "used" popup state (only here)
+  // "used" popup state
   const [usedOpen, setUsedOpen] = React.useState(false);
   const [usedMessage, setUsedMessage] = React.useState<string>("");
-  const [usedRedirect, setUsedRedirect] = React.useState<string | undefined>(undefined);
+  const [summaryLoading, setSummaryLoading] = React.useState(false);
+  const [summary, setSummary] = React.useState<Summary | null>(null);
 
   const valid = CODE_PATTERN.test(code);
   const canBegin = valid && agree && !busy;
@@ -57,7 +70,7 @@ export function CustomerAuthCard() {
     setError(null);
 
     try {
-      const res = await fetch("/api/customer/auth/verify", {
+      const res = await fetch("/api/auth/customer/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ receipt_number: code }),
@@ -78,14 +91,30 @@ export function CustomerAuthCard() {
       if (data.state === "used") {
         setUsedMessage(
           data.message ||
-            "It seems you've already provided your feedback — we appreciate it! Here is the summary of your feedback:",
+            "It seems you've already provided your feedback — we appreciate it! Here is the summary of your feedback:"
         );
-        setUsedRedirect(data.redirect ?? `/feedback/summary?code=${encodeURIComponent(code)}`);
-        setUsedOpen(true); // show popup instead of redirecting
+        setSummaryLoading(true);
+        setUsedOpen(true);
+
+        try {
+          const sRes = await fetch(
+            `/api/feedback/summary?code=${encodeURIComponent(code)}`
+          );
+          if (sRes.ok) {
+            const json = await sRes.json();
+            setSummary(json);
+          } else {
+            setSummary(null);
+          }
+        } catch {
+          setSummary(null);
+        } finally {
+          setSummaryLoading(false);
+        }
         return;
       }
 
-      // ok
+      // ok → proceed to form
       const target =
         data.redirect && data.redirect.startsWith("/")
           ? data.redirect
@@ -102,32 +131,70 @@ export function CustomerAuthCard() {
 
   return (
     <>
-     
-      {/* USED POPUP (only here) */}
+      {/* USED POPUP (shows full summary) */}
       <Dialog open={usedOpen} onOpenChange={setUsedOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Thank you 🙌</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">{usedMessage}</p>
-            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-              <p className="font-medium">Summary (demo)</p>
-              <ul className="mt-2 list-disc pl-5 text-muted-foreground">
-                <li>Overall experience: 5/5</li>
-                <li>Favorite drink: Iced Spanish Latte</li>
-                <li>Comments: “Great service, would recommend!”</li>
-              </ul>
+          <ScrollArea className="max-h-[55vh] pr-2">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">{usedMessage}</p>
+
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+                <p className="font-medium mb-2">Your previous answers</p>
+
+                {summaryLoading && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Loading…
+                  </div>
+                )}
+
+                {!summaryLoading && !summary && (
+                  <p className="text-muted-foreground">
+                    Sorry, we couldn’t load your summary.
+                  </p>
+                )}
+
+                {!summaryLoading && summary && (
+                  <ul className="space-y-3">
+                    {summary.answers
+                      .sort((a, b) => a.display_order - b.display_order)
+                      .map((a) => (
+                        <li
+                          key={a.key}
+                          className="rounded-md border bg-background p-3"
+                        >
+                          <div className="text-[0.9rem] font-medium text-foreground">
+                            {a.prompt}
+                          </div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {a.value ?? "—"}
+                          </div>
+                        </li>
+                      ))}
+                    <li className="rounded-md border bg-background p-3">
+                      <div className="text-[0.8rem] text-muted-foreground">
+                        Submitted at:{" "}
+                        <span className="tabular-nums">
+                          {new Date(
+                            summary.submission.submitted_at
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    </li>
+                  </ul>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setUsedOpen(false)}>
+                  Close
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setUsedOpen(false)}>
-                Close
-              </Button>
-              <Button onClick={() => usedRedirect && router.push(usedRedirect)}>
-                View Full Summary
-              </Button>
-            </div>
-          </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
@@ -151,7 +218,8 @@ export function CustomerAuthCard() {
           />
           <CardTitle className="text-base">Welcome</CardTitle>
           <CardDescription>
-            Use your receipt&apos;s <span className="font-medium">Survey ID</span> to begin
+            Use your receipt&apos;s{" "}
+            <span className="font-medium">Survey ID</span> to begin
           </CardDescription>
         </CardHeader>
 
@@ -200,22 +268,27 @@ export function CustomerAuthCard() {
                     <ScrollArea className="max-h-[55vh] pr-2">
                       <div className="mb-5 mt-3 space-y-3 text-sm leading-relaxed text-justify">
                         <p>
-                          By participating in this Customer Feedback Survey, you may be asked to
-                          provide personal information such as your name, contact number, and email
-                          address. This information is collected voluntarily and will only be used
-                          for specific purposes, including contacting you for additional feedback,
-                          sharing relevant updates about our business (with your consent), and
-                          producing aggregated, anonymous data for statistical analysis and
-                          insights.
+                          By participating in this Customer Feedback Survey, you
+                          may be asked to provide personal information such as
+                          your name, contact number, and email address. This
+                          information is collected voluntarily and will only be
+                          used for specific purposes, including contacting you
+                          for additional feedback, sharing relevant updates
+                          about our business (with your consent), and producing
+                          aggregated, anonymous data for statistical analysis
+                          and insights.
                         </p>
                         <p>
-                          We are committed to protecting your privacy and ensuring that your
-                          information remains confidential and secure. Your personal data will never
-                          be sold, shared, or disclosed to third parties without your explicit
-                          consent, unless required by law. All personal information will be retained
-                          only as long as necessary for the purposes stated above and will be
-                          securely deleted thereafter. By participating in this survey, you confirm
-                          that you understand and agree to the above terms.
+                          We are committed to protecting your privacy and
+                          ensuring that your information remains confidential
+                          and secure. Your personal data will never be sold,
+                          shared, or disclosed to third parties without your
+                          explicit consent, unless required by law. All personal
+                          information will be retained only as long as necessary
+                          for the purposes stated above and will be securely
+                          deleted thereafter. By participating in this survey,
+                          you confirm that you understand and agree to the above
+                          terms.
                         </p>
                       </div>
                     </ScrollArea>
@@ -230,7 +303,10 @@ export function CustomerAuthCard() {
                   onCheckedChange={(v) => setAgree(Boolean(v))}
                   className="mt-0.5 h-4 w-4 shrink-0 border-2 border-muted-foreground/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
-                <Label htmlFor="agree" className="cursor-pointer select-none leading-5">
+                <Label
+                  htmlFor="agree"
+                  className="cursor-pointer select-none leading-5"
+                >
                   I agree to the terms above.
                 </Label>
               </div>
@@ -248,10 +324,14 @@ export function CustomerAuthCard() {
             </Button>
             <Button
               type="submit"
-              className={`min-w-[110px] ${agree ? "" : "opacity-50 cursor-not-allowed"}`}
+              className={`min-w-[110px] ${
+                agree ? "" : "opacity-50 cursor-not-allowed"
+              }`}
               disabled={!agree || busy || !valid}
             >
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+              {busy && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              )}
               Begin
             </Button>
           </CardFooter>
