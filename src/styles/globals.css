@@ -223,3 +223,12 @@ html { font-size: 18px; }
 @layer utilities {
   .tracking-normal { letter-spacing: var(--tracking-normal); }
 }
+
+@layer components {
+  .glass-card {
+    @apply relative rounded-2xl border border-white/20 shadow-xl;
+    background: rgba(255, 255, 255, 0.05); /* or var(--card) with opacity */
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+}

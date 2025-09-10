@@ -57,7 +57,7 @@ export function CustomerAuthCard() {
     setError(null);
 
     try {
-      const res = await fetch("/api/verify", {
+      const res = await fetch("/api/customer/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ receipt_number: code }),
@@ -141,6 +141,13 @@ export function CustomerAuthCard() {
             height={96}
             className="mx-auto h-24 w-24 object-contain dark:hidden"
             priority
+          />
+          <Image
+            src="/images/coffee-white.png"
+            alt="Coffee Crave"
+            width={96}
+            height={96}
+            className="mx-auto h-24 w-24 object-contain hidden dark:block"
           />
           <CardTitle className="text-base">Welcome</CardTitle>
           <CardDescription>

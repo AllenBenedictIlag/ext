@@ -31,10 +31,10 @@ type Props = {
 }
 
 const EMOJI_SCALE = [
-  { value: '1' as LikertValue, caption: 'Never',     emoji: '😔' },
-  { value: '2' as LikertValue, caption: 'Rarely',    emoji: '😟' },
-  { value: '3' as LikertValue, caption: 'Sometimes', emoji: '😐' },
-  { value: '4' as LikertValue, caption: 'Often',     emoji: '🙂' },
+  { value: '1' as LikertValue, caption: 'Extremely Disatisfied',     emoji: '😔' },
+  { value: '2' as LikertValue, caption: 'Disatisfied',    emoji: '😟' },
+  { value: '3' as LikertValue, caption: 'Satisfied', emoji: '😐' },
+  { value: '4' as LikertValue, caption: 'Extremely Satisfied',     emoji: '🙂' },
 ]
 
 type PageType = 'likert' | 'yesno' | 'free' | 'review'
