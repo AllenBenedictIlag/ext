@@ -36,6 +36,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.539.0",
+    "motion": "^12.23.12",
     "mysql2": "^3.14.3",
     "mysql2-promise": "^0.1.4",
     "next": "^15.5.2",
