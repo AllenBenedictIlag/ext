@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "../ui/input";
 
 // ---------- NEW: DTOs from /api/surveys/current ----------
 type OptionDTO = {
@@ -34,7 +35,7 @@ type QuestionDTO = {
   display_order: number;
   question_key: string;
   prompt: string;
-  question_type: "LIKERT" | "YES_NO" | "TEXT" | "NUMBER";
+  question_type: "LIKERT" | "YES_NO" | "TEXT" | "SHORT_TEXT";
   required: 0 | 1;
   help_text: string | null;
   options: OptionDTO[];
@@ -65,7 +66,7 @@ export type FormState = {
 };
 
 // Page plumbing
-type PageType = "likert" | "yesno" | "free" | "number" | "review";
+type PageType = "likert" | "yesno" | "free" | "short" | "review";
 type Page = {
   key: string; // question_key or "review"
   type: PageType;
@@ -150,7 +151,7 @@ function EmojiTile({
   );
 }
 
-// ---------- Label helpers for Review ----------
+// ---------- Label helpers ----------
 function likertLabelFromOptions(opts: OptionDTO[], v?: string) {
   if (!v) return "—";
   return opts.find((o) => o.option_value === v)?.label ?? "—";
@@ -159,6 +160,12 @@ function yesNoLabelFromOptions(opts: OptionDTO[], v?: string) {
   if (!v) return "—";
   return opts.find((o) => o.option_value === v)?.label ?? (v === "yes" ? "Yes" : v === "no" ? "No" : "—");
 }
+function formatAnswerForDisplay(q: QuestionDTO, v?: string) {
+  if (!v || (typeof v === "string" && !v.trim())) return "—";
+  if (q.question_type === "LIKERT") return likertLabelFromOptions(q.options, v);
+  if (q.question_type === "YES_NO") return yesNoLabelFromOptions(q.options, v);
+  return v;
+}
 
 // ---------- NEW: helper to know if a required page is answered ----------
 function isPageAnswered(page: Page, answers: Record<string, string | undefined>) {
@@ -166,7 +173,7 @@ function isPageAnswered(page: Page, answers: Record<string, string | undefined>)
   const v = answers[page.key];
   if (v == null) return false;
 
-  if (page.type === "free" || page.type === "number") {
+  if (page.type === "free" || page.type === "short") {
     return typeof v === "string" && v.trim().length > 0;
   }
   return String(v).length > 0; // likert/yesno
@@ -189,16 +196,21 @@ export default function FeedbackForm({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // submission state
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false); // used for Exit (actual save)
   const [step, setStep] = useState(1);
 
   // answers bag
   const [data, setData] = useState<FormState>({ code, answers: {} });
 
-  // success dialog state
+  // ---------- NEW: success dialog (opens BEFORE saving) ----------
   const [successOpen, setSuccessOpen] = useState(false);
   const [submissionId, setSubmissionId] = useState<number | null>(null);
   const [submittedSnapshot, setSubmittedSnapshot] = useState<FormState | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // ---------- "Used survey ID" dialog ----------
+  const [usedOpen, setUsedOpen] = useState(false);
+  const [usedSummary, setUsedSummary] = useState<Record<string, string> | null>(null);
 
   // Load survey once
   useEffect(() => {
@@ -235,7 +247,6 @@ export default function FeedbackForm({
     if (survey?.questions?.length) {
       for (const q of survey.questions) {
         if (q.question_type === "YES_NO") {
-          // render two tiles (from options)
           const yes = q.options.find((o) => o.option_value === "yes");
           const no = q.options.find((o) => o.option_value === "no");
           base.push({
@@ -267,7 +278,6 @@ export default function FeedbackForm({
             ),
           });
         } else if (q.question_type === "LIKERT") {
-          // order by option_value if it's 1..4
           const opts = [...q.options].sort((a, b) => (a.option_value > b.option_value ? 1 : -1));
           base.push({
             key: q.question_key,
@@ -279,7 +289,6 @@ export default function FeedbackForm({
             render: (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {opts.map((o) => {
-                  // if option_value ∈ {1..4}, show the matching emoji; else fallback
                   const em = (LIKERT_EMOJIS as any)[o.option_value as LikertValue]?.emoji ?? "🙂";
                   return (
                     <EmojiTile
@@ -308,12 +317,13 @@ export default function FeedbackForm({
                   {q.prompt}
                 </Label>
                 <Textarea
+                  key={`text-${q.id}`}                 // NEW: prevent DOM reuse
                   id={`text-${q.id}`}
                   placeholder="Type your answer here…"
                   rows={5}
                   className="h-40 max-h-40 w-full resize-none overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
                   style={{ overflowWrap: "anywhere" }}
-                  defaultValue={data.answers[q.question_key] ?? ""}
+                  value={data.answers[q.question_key] ?? ""}    // NEW: controlled
                   onChange={(e) => setAnswer(q.question_key, e.target.value)}
                 />
                 {q.help_text && (
@@ -322,24 +332,25 @@ export default function FeedbackForm({
               </>
             ),
           });
-        } else if (q.question_type === "NUMBER") {
+        } else if (q.question_type === "SHORT_TEXT") {
           base.push({
             key: q.question_key,
-            type: "number",
+            type: "short",
             title: `Question ${q.display_order}`,
             desc: q.prompt,
             required: !!q.required,
             question: q,
             render: (
               <>
-                <Label htmlFor={`num-${q.id}`} className="sr-only">
+                <Label htmlFor={`short-${q.id}`} className="sr-only">
                   {q.prompt}
                 </Label>
-                <input
-                  id={`num-${q.id}`}
-                  type="number"
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  defaultValue={data.answers[q.question_key] ?? ""}
+                <Input
+                  key={`short-${q.id}`}                         // NEW
+                  id={`short-${q.id}`}
+                  type="text"
+                  placeholder="Your answer…"
+                  value={data.answers[q.question_key] ?? ""}    // controlled
                   onChange={(e) => setAnswer(q.question_key, e.target.value)}
                 />
                 {q.help_text && (
@@ -363,14 +374,7 @@ export default function FeedbackForm({
           <div className="space-y-3">
             {survey?.questions.map((q) => {
               const v = data.answers[q.question_key];
-              let value = "—";
-              if (q.question_type === "LIKERT") {
-                value = likertLabelFromOptions(q.options, v);
-              } else if (q.question_type === "YES_NO") {
-                value = yesNoLabelFromOptions(q.options, v);
-              } else if (q.question_type === "TEXT" || q.question_type === "NUMBER") {
-                value = (v?.trim?.() ? v : "—") as string;
-              }
+              const value = formatAnswerForDisplay(q, v);
               return (
                 <ReviewItem
                   key={q.id}
@@ -397,47 +401,54 @@ export default function FeedbackForm({
     current?.key !== "review" && current?.required && !isPageAnswered(current, data.answers);
   const isContinueDisabled = submitting || !data.code || isCurrentRequiredAndUnanswered;
 
-  async function doSubmit() {
-    if (!data.code) return;
+  // ---------- NEW: commit on Exit (actual DB save) ----------
+  async function commitSubmission() {
+    if (!recap?.code) return;
 
     try {
+      setSaveError(null);
       setSubmitting(true);
-      setSubmittedSnapshot({ ...data });
 
       if (onSubmit) {
-        await onSubmit(data);
+        await onSubmit(recap);
         setSubmissionId(null);
       } else {
         const res = await fetch("/api/feedback", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify(recap),
         });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) {
-          // TODO: replace with toasts
-          return;
+          throw new Error(payload?.error ?? `Failed to submit (HTTP ${res.status})`);
         }
         setSubmissionId(payload?.submission_id ?? null);
       }
 
-      setSuccessOpen(true);
-    } catch (e) {
-      console.error(e);
+      // After successful save, leave the flow
+      setSuccessOpen(false);
+      router.replace("/customer/auth");
+      resetForm();
+    } catch (e: any) {
+      setSaveError(e?.message || "Something went wrong while submitting. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
+  // ---------- OLD doSubmit replaced by open modal ----------
   const onContinue = async () => {
     if (submitting) return;
-    // Guard navigation as well (in case of Enter key, etc.)
     if (current?.key !== "review" && current?.required && !isPageAnswered(current, data.answers)) {
-      // TODO: toast "This question is required"
       return;
     }
-    if (step < total) setStep((s) => s + 1);
-    else await doSubmit();
+    if (step < total) {
+      setStep((s) => s + 1);
+    } else {
+      // Instead of saving now, open the Thank You popup and defer saving to Exit
+      setSubmittedSnapshot({ ...data });
+      setSuccessOpen(true);
+    }
   };
 
   const onPrevious = () => setStep((s) => Math.max(1, s - 1));
@@ -449,6 +460,7 @@ export default function FeedbackForm({
     setStep(1);
     setSubmittedSnapshot(null);
     setSubmissionId(null);
+    setSaveError(null);
   }
 
   // ---------- Loading / Error states ----------
@@ -471,36 +483,90 @@ export default function FeedbackForm({
 
   return (
     <>
-      {/* Success Dialog */}
+      {/* ---------- Used Survey ID Dialog (sticky header + sticky footer) ---------- */}
+      <Dialog open={usedOpen} onOpenChange={setUsedOpen}>
+        <DialogContent className="max-w-3xl p-0">
+          <div className="flex max-h-[85vh] flex-col">
+            {/* Sticky Header (with extra line you asked to keep sticky) */}
+            <div className="sticky top-0 z-10 border-b bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <DialogHeader className="p-0">
+                <DialogTitle className="text-base leading-tight">Thank you 🙌</DialogTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  It seems you&apos;ve already provided your feedback — we appreciate it! For now, we&apos;ll show your summary here.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  You can go back to change any answer before submitting.
+                </p>
+              </DialogHeader>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-3">
+                {(survey?.questions ?? []).map((q) => {
+                  const raw = usedSummary?.[q.question_key];
+                  const val = formatAnswerForDisplay(q, raw);
+                  return (
+                    <ReviewItem
+                      key={q.id}
+                      label={q.prompt}
+                      value={val}
+                      multiline={q.question_type === "TEXT"}
+                    />
+                  );
+                })}
+                {(!survey?.questions?.length || !usedSummary) && (
+                  <p className="text-xs text-muted-foreground">
+                    We&apos;ll load your previous answers here once available.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky Footer */}
+            <div className="sticky bottom-0 z-10 border-t bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" onClick={() => setUsedOpen(false)} className="btn-halo">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Thank You / Finalize Dialog (opens BEFORE saving) ---------- */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              🎉 Thanks for your feedback!
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2">🎉 Thank you!</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
               <p className="text-muted-foreground">
-                We’ve recorded your responses. Your input helps us improve your next visit.
+                You&apos;re all set. Click <strong>Exit</strong> to submit your answers and finish.
               </p>
               {submissionId != null && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Reference:&nbsp;
-                  <span className="font-mono tabular-nums">#{submissionId}</span>
+                  Reference:&nbsp;<span className="font-mono tabular-nums">#{submissionId}</span>
+                </p>
+              )}
+              {saveError && (
+                <p className="mt-2 text-xs text-red-500" role="alert">
+                  {saveError}
                 </p>
               )}
             </div>
+
             <div className="flex justify-end">
               <Button
                 className="btn-halo btn-halo--emph"
-                onClick={() => {
-                  router.replace("/customer/auth");
-                  resetForm();
-                }}
+                onClick={commitSubmission}
+                disabled={submitting}
+                title="This will submit your answers and exit"
               >
-                Exit
+                {submitting ? "Submitting…" : "Exit"}
               </Button>
             </div>
           </div>
@@ -519,7 +585,7 @@ export default function FeedbackForm({
         <input type="hidden" name="code" value={data.code} />
 
         {/* Question card — consistent height */}
-        <Card className="w-full mx-auto mt-24 mb-10 border-muted shadow-2xl">
+        <Card key={`page-${current.key}`} className="w-full mx-auto mt-24 mb-10 border-muted shadow-2xl">
           <div className="flex flex-col min-h-[250px]">
             <CardHeader className="shrink-0 pb-3">
               <CardTitle className="text-secondary-foreground text-base">
@@ -559,11 +625,13 @@ export default function FeedbackForm({
               title={
                 isCurrentRequiredAndUnanswered
                   ? "Please answer the required question to continue"
+                  : step === total
+                  ? "Open the thank-you popup"
                   : undefined
               }
               className="btn-halo btn-halo--emph"
             >
-              {step === total ? (submitting ? "Submitting…" : "Submit") : "Continue"}
+              {step === total ? "Submit" : "Continue"}
             </Button>
           </div>
         </div>

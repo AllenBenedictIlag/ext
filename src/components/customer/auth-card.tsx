@@ -39,7 +39,7 @@ type Summary = {
   answers: Array<{
     key: string;
     prompt: string;
-    type: "LIKERT" | "YES_NO" | "TEXT";
+    type: "LIKERT" | "YES_NO" | "TEXT" | "SHORT_TEXT";
     display_order: number;
     value: string | null;
     raw: any;
@@ -142,7 +142,7 @@ export function CustomerAuthCard() {
               <p className="text-sm text-muted-foreground">{usedMessage}</p>
 
               <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-                <p className="font-medium mb-2">Your previous answers</p>
+                <p className="font-bold mb-2">Your previous answers</p>
 
                 {summaryLoading && (
                   <div className="flex items-center gap-2 text-muted-foreground">

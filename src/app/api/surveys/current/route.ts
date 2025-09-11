@@ -15,7 +15,7 @@ interface QuestionRow extends RowDataPacket {
   display_order: number;
   question_key: string;
   prompt: string;
-  question_type: "LIKERT" | "YES_NO" | "TEXT" | "NUMBER";
+  question_type: "LIKERT" | "YES_NO" | "TEXT" | "SHORT_TEXT";
   required: 0 | 1;
   help_text: string | null;
 }

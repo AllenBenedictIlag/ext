@@ -2,12 +2,10 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
 
-type QuestionType = "LIKERT" | "YES_NO" | "TEXT" | "NUMBER";
+type QuestionType = "LIKERT" | "YES_NO" | "TEXT" | "SHORT_TEXT";
 
 type Body = {
   code: string;
-  // answers keyed by question_key; values are option_value (for LIKERT/YES_NO)
-  // or free text / numeric strings (for TEXT/NUMBER)
   answers: Record<string, string | undefined>;
 };
 
@@ -156,7 +154,7 @@ export async function POST(req: Request) {
         case "TEXT":
           await putAnswer(qMeta.id, undefined, v);
           break;
-        case "NUMBER":
+        case "SHORT_TEXT":
           // store as text_value; normalize to a numeric-looking string
           await putAnswer(qMeta.id, undefined, v);
           break;
