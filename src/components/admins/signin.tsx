@@ -28,7 +28,7 @@ export function LoginForm({
     e.preventDefault();
     setBusy(true);
     setError(null);
-
+  
     try {
       if (mode === "signin") {
         const res = await fetch("/api/auth/admins/signin", {
@@ -41,7 +41,15 @@ export function LoginForm({
           setError(json?.error ?? "Sign in failed");
           return;
         }
-        router.push("/admin/dashboard");
+  
+        // json.data.role is returned by the signin API
+        const role = json?.data?.role as "SUPER_ADMIN" | "ADMIN" | undefined;
+  
+        if (role === "SUPER_ADMIN") {
+          router.push("/superadmin/superdashboard");
+        } else if (role === "ADMIN") {
+          router.push("/admin/dashboard");
+        }
       } else {
         if (password !== confirm) {
           setError("Passwords do not match");
@@ -63,8 +71,8 @@ export function LoginForm({
           setError(json?.error ?? "Sign up failed");
           return;
         }
-        // (Optional) auto sign-in could be added here
-        router.push("/admin");
+        // keep simple for now; send new admins to admin area
+        router.push("/admin/dashboard");
       }
     } catch (err: any) {
       setError(err?.message ?? "Network error");
@@ -72,6 +80,7 @@ export function LoginForm({
       setBusy(false);
     }
   }
+  
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
