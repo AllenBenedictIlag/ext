@@ -1,7 +1,8 @@
+// D:\Projects\sidebar\src\components\customer\feedback-form.tsx
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -21,43 +22,61 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+// ---------- NEW: DTOs from /api/surveys/current ----------
+type OptionDTO = {
+  id: number;
+  option_value: string;
+  label: string;
+};
+
+type QuestionDTO = {
+  id: number;
+  display_order: number;
+  question_key: string;
+  prompt: string;
+  question_type: "LIKERT" | "YES_NO" | "TEXT" | "NUMBER";
+  required: 0 | 1;
+  help_text: string | null;
+  options: OptionDTO[];
+};
+
+type SurveyDTO = {
+  id: number;
+  title: string;
+  version: number;
+  published_at: string | null;
+  questions: QuestionDTO[];
+};
+
+// ---------- Your existing UI helpers ----------
 type LikertValue = "1" | "2" | "3" | "4";
+
+const LIKERT_EMOJIS: Record<LikertValue, { emoji: string }> = {
+  "1": { emoji: "😔" },
+  "2": { emoji: "😟" },
+  "3": { emoji: "😐" },
+  "4": { emoji: "🙂" },
+};
+
+// Generic "answers" bag keyed by question_key; keep code separate
 export type FormState = {
   code: string;
-  accurate?: "yes" | "no" | "";
-  overall?: LikertValue;
-  speed?: LikertValue;
-  friendliness?: LikertValue;
-  quality?: LikertValue;
-  taste?: LikertValue;
-  ambience?: LikertValue;
-  cleanliness?: LikertValue;
-  revisit?: "yes" | "no" | "";
-  comments?: string;
+  answers: Record<string, string | undefined>; // key = question_key, value = option_value or free text
 };
 
-type Props = {
-  code: string;
-  onSubmit?: (data: FormState) => Promise<void> | void;
-  className?: string;
-};
-
-const EMOJI_SCALE = [
-  { value: "1" as LikertValue, caption: "Extremely Dissatisfied", emoji: "😔" },
-  { value: "2" as LikertValue, caption: "Dissatisfied", emoji: "😟" },
-  { value: "3" as LikertValue, caption: "Satisfied", emoji: "😐" },
-  { value: "4" as LikertValue, caption: "Extremely Satisfied", emoji: "🙂" },
-];
-
-type PageType = "likert" | "yesno" | "free" | "review";
+// Page plumbing
+type PageType = "likert" | "yesno" | "free" | "number" | "review";
 type Page = {
-  key: keyof FormState | "review";
+  key: string; // question_key or "review"
   type: PageType;
   title: string;
   desc: string;
+  required?: boolean;
+  question?: QuestionDTO;
   render: React.ReactNode;
 };
 
+// ---------- Progress + Tile components ----------
 function ProgressHeader({ current, total }: { current: number; total: number }) {
   const clamped = Math.min(current, total);
   const activeIdx = clamped - 1;
@@ -131,238 +150,210 @@ function EmojiTile({
   );
 }
 
-// helpers for the Review page + success dialog
-function likertLabel(v?: LikertValue) {
-  return EMOJI_SCALE.find((o) => o.value === v)?.caption ?? "—";
+// ---------- Label helpers for Review ----------
+function likertLabelFromOptions(opts: OptionDTO[], v?: string) {
+  if (!v) return "—";
+  return opts.find((o) => o.option_value === v)?.label ?? "—";
 }
-function yesNoLabel(v?: "yes" | "no" | "") {
-  return v === "yes" ? "Yes" : v === "no" ? "No" : "—";
+function yesNoLabelFromOptions(opts: OptionDTO[], v?: string) {
+  if (!v) return "—";
+  return opts.find((o) => o.option_value === v)?.label ?? (v === "yes" ? "Yes" : v === "no" ? "No" : "—");
 }
 
-export default function FeedbackForm({ code, onSubmit, className }: Props) {
+// ---------- NEW: helper to know if a required page is answered ----------
+function isPageAnswered(page: Page, answers: Record<string, string | undefined>) {
+  if (!page || page.key === "review" || !page.required) return true;
+  const v = answers[page.key];
+  if (v == null) return false;
+
+  if (page.type === "free" || page.type === "number") {
+    return typeof v === "string" && v.trim().length > 0;
+  }
+  return String(v).length > 0; // likert/yesno
+}
+
+export default function FeedbackForm({
+  code,
+  onSubmit,
+  className,
+}: {
+  code: string;
+  onSubmit?: (data: FormState) => Promise<void> | void;
+  className?: string;
+}) {
   const router = useRouter();
+
+  // ---------- survey loading ----------
+  const [loadingSurvey, setLoadingSurvey] = useState(true);
+  const [survey, setSurvey] = useState<SurveyDTO | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // submission state
   const [submitting, setSubmitting] = useState(false);
-  const [data, setData] = useState<FormState>({ code, accurate: "", revisit: "" });
   const [step, setStep] = useState(1);
+
+  // answers bag
+  const [data, setData] = useState<FormState>({ code, answers: {} });
 
   // success dialog state
   const [successOpen, setSuccessOpen] = useState(false);
   const [submissionId, setSubmissionId] = useState<number | null>(null);
-
-  // keep a snapshot of what was submitted so recap doesn’t blank after reset
   const [submittedSnapshot, setSubmittedSnapshot] = useState<FormState | null>(null);
 
-  const setField = <K extends keyof FormState>(key: K, val: FormState[K]) =>
-    setData((d) => ({ ...d, [key]: val }));
+  // Load survey once
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingSurvey(true);
+        const res = await fetch("/api/surveys/current", { cache: "no-store" });
+        if (!res.ok) {
+          const msg = (await res.json().catch(() => ({} as any)))?.error ?? `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
+        const payload: SurveyDTO = await res.json();
+        if (mounted) setSurvey(payload);
+      } catch (e: any) {
+        if (mounted) setLoadError(e?.message || "Failed to load survey.");
+      } finally {
+        if (mounted) setLoadingSurvey(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  const pages: Page[] = [
-    {
-      key: "accurate",
-      type: "yesno",
-      title: "Question 1",
-      desc: "Was your order accurate?",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="sm:col-start-2">
-            <EmojiTile
-              selected={data.accurate === "yes"}
-              emoji="👍"
-              caption="Yes"
-              onClick={() => setField("accurate", "yes")}
-            />
-          </div>
-          <div className="sm:col-start-3">
-            <EmojiTile
-              selected={data.accurate === "no"}
-              emoji="👎"
-              caption="No"
-              onClick={() => setField("accurate", "no")}
-            />
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "overall",
-      type: "likert",
-      title: "Question 2",
-      desc: "Based on your visit, how was your overall satisfaction?",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.overall === o.value}
-              onClick={() => setField("overall", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "speed",
-      type: "likert",
-      title: "Question 3",
-      desc: "How satisfied were you with the speed of service?",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.speed === o.value}
-              onClick={() => setField("speed", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "friendliness",
-      type: "likert",
-      title: "Question 4",
-      desc: "How satisfied were you with the staff's friendliness?",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.friendliness === o.value}
-              onClick={() => setField("friendliness", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "quality",
-      type: "likert",
-      title: "Question 5",
-      desc: "Rate the quality of food and drinks.",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.quality === o.value}
-              onClick={() => setField("quality", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "taste",
-      type: "likert",
-      title: "Question 6",
-      desc: "Rate the taste and aroma of your order.",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.taste === o.value}
-              onClick={() => setField("taste", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "ambience",
-      type: "likert",
-      title: "Question 7",
-      desc: "Rate the ambience of the shop.",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.ambience === o.value}
-              onClick={() => setField("ambience", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "cleanliness",
-      type: "likert",
-      title: "Question 8",
-      desc: "Rate the cleanliness of the shop.",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {EMOJI_SCALE.map((o) => (
-            <EmojiTile
-              key={o.value}
-              emoji={o.emoji}
-              caption={o.caption}
-              selected={data.cleanliness === o.value}
-              onClick={() => setField("cleanliness", o.value)}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "revisit",
-      type: "yesno",
-      title: "Question 9",
-      desc: "Based on your experience, would you visit us again?",
-      render: (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="sm:col-start-2">
-            <EmojiTile
-              selected={data.revisit === "yes"}
-              emoji="👍"
-              caption="Yes"
-              onClick={() => setField("revisit", "yes")}
-            />
-          </div>
-          <div className="sm:col-start-3">
-            <EmojiTile
-              selected={data.revisit === "no"}
-              emoji="👎"
-              caption="No"
-              onClick={() => setField("revisit", "no")}
-            />
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "comments",
-      type: "free",
-      title: "Question 10",
-      desc: "Any additional comments or suggestions?",
-      render: (
-        <>
-          <Label htmlFor="comments" className="sr-only">
-            Comments
-          </Label>
-          <Textarea
-            id="comments"
-            placeholder="Type your comments here…"
-            rows={5}
-            className="h-40 max-h-40 w-full resize-none overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
-            style={{ overflowWrap: "anywhere" }}
-            onChange={(e) => setField("comments", e.target.value)}
-          />
-        </>
-      ),
-    },
-    {
+  // Short helper to set an answer
+  const setAnswer = (key: string, value: string | undefined) =>
+    setData((d) => ({ ...d, answers: { ...d.answers, [key]: value } }));
+
+  // ---------- Build dynamic pages from survey ----------
+  const pages: Page[] = useMemo(() => {
+    const base: Page[] = [];
+
+    if (survey?.questions?.length) {
+      for (const q of survey.questions) {
+        if (q.question_type === "YES_NO") {
+          // render two tiles (from options)
+          const yes = q.options.find((o) => o.option_value === "yes");
+          const no = q.options.find((o) => o.option_value === "no");
+          base.push({
+            key: q.question_key,
+            type: "yesno",
+            title: `Question ${q.display_order}`,
+            desc: q.prompt,
+            required: !!q.required,
+            question: q,
+            render: (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="sm:col-start-2">
+                  <EmojiTile
+                    selected={data.answers[q.question_key] === yes?.option_value}
+                    emoji="👍"
+                    caption={yes?.label ?? "Yes"}
+                    onClick={() => setAnswer(q.question_key, yes?.option_value)}
+                  />
+                </div>
+                <div className="sm:col-start-3">
+                  <EmojiTile
+                    selected={data.answers[q.question_key] === no?.option_value}
+                    emoji="👎"
+                    caption={no?.label ?? "No"}
+                    onClick={() => setAnswer(q.question_key, no?.option_value)}
+                  />
+                </div>
+              </div>
+            ),
+          });
+        } else if (q.question_type === "LIKERT") {
+          // order by option_value if it's 1..4
+          const opts = [...q.options].sort((a, b) => (a.option_value > b.option_value ? 1 : -1));
+          base.push({
+            key: q.question_key,
+            type: "likert",
+            title: `Question ${q.display_order}`,
+            desc: q.prompt,
+            required: !!q.required,
+            question: q,
+            render: (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {opts.map((o) => {
+                  // if option_value ∈ {1..4}, show the matching emoji; else fallback
+                  const em = (LIKERT_EMOJIS as any)[o.option_value as LikertValue]?.emoji ?? "🙂";
+                  return (
+                    <EmojiTile
+                      key={o.id}
+                      emoji={em}
+                      caption={o.label}
+                      selected={data.answers[q.question_key] === o.option_value}
+                      onClick={() => setAnswer(q.question_key, o.option_value)}
+                    />
+                  );
+                })}
+              </div>
+            ),
+          });
+        } else if (q.question_type === "TEXT") {
+          base.push({
+            key: q.question_key,
+            type: "free",
+            title: `Question ${q.display_order}`,
+            desc: q.prompt,
+            required: !!q.required,
+            question: q,
+            render: (
+              <>
+                <Label htmlFor={`text-${q.id}`} className="sr-only">
+                  {q.prompt}
+                </Label>
+                <Textarea
+                  id={`text-${q.id}`}
+                  placeholder="Type your answer here…"
+                  rows={5}
+                  className="h-40 max-h-40 w-full resize-none overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
+                  style={{ overflowWrap: "anywhere" }}
+                  defaultValue={data.answers[q.question_key] ?? ""}
+                  onChange={(e) => setAnswer(q.question_key, e.target.value)}
+                />
+                {q.help_text && (
+                  <p className="text-xs text-muted-foreground mt-1">{q.help_text}</p>
+                )}
+              </>
+            ),
+          });
+        } else if (q.question_type === "NUMBER") {
+          base.push({
+            key: q.question_key,
+            type: "number",
+            title: `Question ${q.display_order}`,
+            desc: q.prompt,
+            required: !!q.required,
+            question: q,
+            render: (
+              <>
+                <Label htmlFor={`num-${q.id}`} className="sr-only">
+                  {q.prompt}
+                </Label>
+                <input
+                  id={`num-${q.id}`}
+                  type="number"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  defaultValue={data.answers[q.question_key] ?? ""}
+                  onChange={(e) => setAnswer(q.question_key, e.target.value)}
+                />
+                {q.help_text && (
+                  <p className="text-xs text-muted-foreground mt-1">{q.help_text}</p>
+                )}
+              </>
+            ),
+          });
+        }
+      }
+    }
+
+    // Add Review page (always last)
+    base.push({
       key: "review",
       type: "review",
       title: "Review & Submit",
@@ -370,37 +361,47 @@ export default function FeedbackForm({ code, onSubmit, className }: Props) {
       render: (
         <div className="text-sm text-muted-foreground">
           <div className="space-y-3">
-            <ReviewItem label="Was your order accurate?" value={yesNoLabel(data.accurate)} />
-            <ReviewItem label="Overall satisfaction" value={likertLabel(data.overall)} />
-            <ReviewItem label="Speed of service" value={likertLabel(data.speed)} />
-            <ReviewItem label="Staff friendliness" value={likertLabel(data.friendliness)} />
-            <ReviewItem label="Quality of food and drinks" value={likertLabel(data.quality)} />
-            <ReviewItem label="Taste and aroma" value={likertLabel(data.taste)} />
-            <ReviewItem label="Ambience of the shop" value={likertLabel(data.ambience)} />
-            <ReviewItem label="Cleanliness of the shop" value={likertLabel(data.cleanliness)} />
-            <ReviewItem label="Would you visit us again?" value={yesNoLabel(data.revisit)} />
-            <ReviewItem
-              label="Comments"
-              value={data.comments?.trim() ? data.comments.trim() : "—"}
-              multiline
-            />
+            {survey?.questions.map((q) => {
+              const v = data.answers[q.question_key];
+              let value = "—";
+              if (q.question_type === "LIKERT") {
+                value = likertLabelFromOptions(q.options, v);
+              } else if (q.question_type === "YES_NO") {
+                value = yesNoLabelFromOptions(q.options, v);
+              } else if (q.question_type === "TEXT" || q.question_type === "NUMBER") {
+                value = (v?.trim?.() ? v : "—") as string;
+              }
+              return (
+                <ReviewItem
+                  key={q.id}
+                  label={q.prompt}
+                  value={value}
+                  multiline={q.question_type === "TEXT"}
+                />
+              );
+            })}
           </div>
           <p className="mt-4">You can go back to change any answer before submitting.</p>
         </div>
       ),
-    },
-  ];
+    });
+
+    return base;
+  }, [survey, data.answers]);
 
   const total = pages.length;
-  const current = pages[step - 1] as Page;
+  const current = pages[step - 1];
+
+  // Compute disabled state for Continue/Submit
+  const isCurrentRequiredAndUnanswered =
+    current?.key !== "review" && current?.required && !isPageAnswered(current, data.answers);
+  const isContinueDisabled = submitting || !data.code || isCurrentRequiredAndUnanswered;
 
   async function doSubmit() {
     if (!data.code) return;
 
     try {
       setSubmitting(true);
-
-      // Snapshot BEFORE any reset so recap stays accurate
       setSubmittedSnapshot({ ...data });
 
       if (onSubmit) {
@@ -414,15 +415,13 @@ export default function FeedbackForm({ code, onSubmit, className }: Props) {
         });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) {
-          // TODO: replace with toasts for 404/410/409
+          // TODO: replace with toasts
           return;
         }
         setSubmissionId(payload?.submission_id ?? null);
       }
 
-      // Open dialog, reset local form state (no auto-navigation)
       setSuccessOpen(true);
-
     } catch (e) {
       console.error(e);
     } finally {
@@ -432,25 +431,47 @@ export default function FeedbackForm({ code, onSubmit, className }: Props) {
 
   const onContinue = async () => {
     if (submitting) return;
+    // Guard navigation as well (in case of Enter key, etc.)
+    if (current?.key !== "review" && current?.required && !isPageAnswered(current, data.answers)) {
+      // TODO: toast "This question is required"
+      return;
+    }
     if (step < total) setStep((s) => s + 1);
     else await doSubmit();
   };
 
   const onPrevious = () => setStep((s) => Math.max(1, s - 1));
 
-  // Prefer snapshot in recap; fallback to current data
   const recap = submittedSnapshot ?? data;
 
   function resetForm() {
-    setData({ code, accurate: "", revisit: "" });
+    setData({ code, answers: {} });
     setStep(1);
     setSubmittedSnapshot(null);
     setSubmissionId(null);
   }
 
+  // ---------- Loading / Error states ----------
+  if (loadingSurvey) {
+    return (
+      <div className={cn("mx-auto grid max-w-3xl", className)}>
+        <div className="mt-24 text-sm text-muted-foreground">Loading survey…</div>
+      </div>
+    );
+  }
+  if (loadError || !survey) {
+    return (
+      <div className={cn("mx-auto grid max-w-3xl", className)}>
+        <div className="mt-24 text-sm text-red-500">
+          Failed to load survey: {loadError ?? "Unknown error"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Success Dialog (user chooses when to exit) */}
+      {/* Success Dialog */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -464,13 +485,17 @@ export default function FeedbackForm({ code, onSubmit, className }: Props) {
               <p className="text-muted-foreground">
                 We’ve recorded your responses. Your input helps us improve your next visit.
               </p>
+              {submissionId != null && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Reference:&nbsp;
+                  <span className="font-mono tabular-nums">#{submissionId}</span>
+                </p>
+              )}
             </div>
-
             <div className="flex justify-end">
               <Button
                 className="btn-halo btn-halo--emph"
                 onClick={() => {
-                  // Explicit exit chosen by customer
                   router.replace("/customer/auth");
                   resetForm();
                 }}
@@ -493,17 +518,23 @@ export default function FeedbackForm({ code, onSubmit, className }: Props) {
 
         <input type="hidden" name="code" value={data.code} />
 
-        {/* Question card — consistent height for all pages */}
+        {/* Question card — consistent height */}
         <Card className="w-full mx-auto mt-24 mb-10 border-muted shadow-2xl">
           <div className="flex flex-col min-h-[250px]">
             <CardHeader className="shrink-0 pb-3">
-              <CardTitle className="text-secondary-foreground text-base">{current.title}</CardTitle>
+              <CardTitle className="text-secondary-foreground text-base">
+                {current.title}
+                {current.required && current.key !== "review" && (
+                  <span className="ml-2 align-middle rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Required
+                  </span>
+                )}
+              </CardTitle>
               <CardDescription className="text-foreground text-[1.25rem]">
                 {current.desc}
               </CardDescription>
             </CardHeader>
 
-            {/* For long review content, allow scrolling within the card */}
             <CardContent
               className={cn(
                 "mt-6 space-y-3",
@@ -523,7 +554,13 @@ export default function FeedbackForm({ code, onSubmit, className }: Props) {
 
             <Button
               type="submit"
-              disabled={submitting || !data.code}
+              disabled={isContinueDisabled}
+              aria-disabled={isContinueDisabled}
+              title={
+                isCurrentRequiredAndUnanswered
+                  ? "Please answer the required question to continue"
+                  : undefined
+              }
               className="btn-halo btn-halo--emph"
             >
               {step === total ? (submitting ? "Submitting…" : "Submit") : "Continue"}
