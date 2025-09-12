@@ -1,5 +1,5 @@
-import UpcomingInterviews from "@/components/upcoming-interviews";
-import PendingSchedule from "@/components/pending-schedule";
+import UpcomingInterviews from "@/components/visualizations/upcoming-interviews";
+import PendingSchedule from "@/components/visualizations/pending-schedule";
 
 export default function SchedulesPage() {
   return (

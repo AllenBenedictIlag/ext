@@ -1,5 +1,5 @@
 "use client"
-import "../styles/globals.css"
+import "../../styles/globals.css"
 import { TrendingDown } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 

@@ -89,7 +89,7 @@ export const SECTIONS_SUPERADMIN: NavSection[] = [
     {
       label: "Controls",
       items: [
-        { title: "Global Settings",  url: "/superadmin/globals",        icon: "database" },
+        { title: "Global Settings",  url: "/superadmin/supersettings",        icon: "database" },
         { title: "Form Templates",   url: "/superadmin/template",       icon: "word" },
       ],
     },

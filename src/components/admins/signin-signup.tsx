@@ -118,7 +118,7 @@ export function SigninForm({
                   priority
                 />
                 <h1 className="text-2xl font-bold tracking-normal">
-                  {mode === "signin" ? "Secure Sign-In" : "Create Account"}
+                  {mode === "signin" ? "Sign-In" : "Create Account"}
                 </h1>
               </div>
 
@@ -173,14 +173,6 @@ export function SigninForm({
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  {mode === "signin" && (
-                    <a
-                      href="/auth/admins/forgot"
-                      className="ml-auto text-sm text-muted-foreground underline-offset-2 hover:underline hover:text-foreground"
-                    >
-                      Forgot your password?
-                    </a>
-                  )}
                 </div>
 
                 <div className="relative">
