@@ -2,7 +2,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { ModeToggle } from "./ui/theme-button"
+import { ModeToggle } from "../ui/theme-button"
 
 export function SiteHeader() {
   const pathname = usePathname()

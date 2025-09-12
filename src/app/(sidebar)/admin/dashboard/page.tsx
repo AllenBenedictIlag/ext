@@ -2,11 +2,10 @@
 
 import { useEffect } from "react"
 import { toast } from "sonner"
-
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { SectionCards } from "@/components/section-cards"
-import { ChartBarLabelCustom } from "@/components/sample-chart"
-import { TableDemo } from "@/components/sample-table"
+import { ChartAreaInteractive } from "@/components/visualizations/chart-area-interactive"
+import { SectionCards } from "@/components/visualizations/section-cards"
+import { ChartBarLabelCustom } from "@/components/visualizations/sample-chart"
+import { TableDemo } from "@/components/visualizations/sample-table"
 
 export default function DashboardPage() {
   useEffect(() => {

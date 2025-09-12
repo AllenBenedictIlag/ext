@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export function LoginForm({
+export function SigninForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {

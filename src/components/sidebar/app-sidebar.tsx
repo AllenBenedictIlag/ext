@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/sidebar/nav-main"
+import { NavUser } from "@/components/sidebar/nav-user"
 import { SECTIONS_ADMIN, SECTIONS_SUPERADMIN } from "@/lib/modules"   // ✅ import your nav config
 
 type Props = React.ComponentProps<typeof Sidebar> & {
