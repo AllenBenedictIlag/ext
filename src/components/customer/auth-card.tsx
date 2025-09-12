@@ -118,7 +118,7 @@ export function CustomerAuthCard() {
       const target =
         data.redirect && data.redirect.startsWith("/")
           ? data.redirect
-          : `/customer/feedback?code=${encodeURIComponent(code)}`;
+          : `/feedback?code=${encodeURIComponent(code)}`;
 
       router.push(target);
     } catch (err) {

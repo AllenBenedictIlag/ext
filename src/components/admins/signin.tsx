@@ -1,3 +1,4 @@
+// D:\Projects\sidebar\src\components\admins\signin.tsx
 "use client";
 
 import Image from "next/image";
@@ -14,13 +15,21 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
-  const [showPassword, setShowPassword] = React.useState(false);
+
+  // One toggle controls both password fields
+  const [showPasswords, setShowPasswords] = React.useState(false);
+  const togglePasswords = () => setShowPasswords((s) => !s);
+
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [name, setName] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
+
+  // split name
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -28,39 +37,44 @@ export function LoginForm({
     e.preventDefault();
     setBusy(true);
     setError(null);
-  
+
     try {
       if (mode === "signin") {
         const res = await fetch("/api/auth/admins/signin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: email.trim(), password }),
         });
         const json = await res.json();
         if (!res.ok) {
           setError(json?.error ?? "Sign in failed");
           return;
         }
-  
-        // json.data.role is returned by the signin API
+
         const role = json?.data?.role as "SUPER_ADMIN" | "ADMIN" | undefined;
-  
         if (role === "SUPER_ADMIN") {
           router.push("/superadmin/superdashboard");
         } else if (role === "ADMIN") {
           router.push("/admin/dashboard");
         }
       } else {
+        // signup
         if (password !== confirm) {
           setError("Passwords do not match");
           return;
         }
+        if (!firstName.trim() || !lastName.trim()) {
+          setError("Please enter first and last name");
+          return;
+        }
+
         const res = await fetch("/api/auth/admins", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name,
-            email,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            email: email.trim(),
             password,
             role: "ADMIN",
             status: "ACTIVE",
@@ -71,7 +85,6 @@ export function LoginForm({
           setError(json?.error ?? "Sign up failed");
           return;
         }
-        // keep simple for now; send new admins to admin area
         router.push("/admin/dashboard");
       }
     } catch (err: any) {
@@ -80,7 +93,6 @@ export function LoginForm({
       setBusy(false);
     }
   }
-  
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -103,20 +115,35 @@ export function LoginForm({
                 </h1>
               </div>
 
-              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+              {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-              {/* Name (signup only) */}
+              {/* First / Last name (signup only) */}
               {mode === "signup" && (
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Jane Admin"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="first_name">First name</Label>
+                    <Input
+                      id="first_name"
+                      type="text"
+                      placeholder="Jane"
+                      autoComplete="given-name"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="last_name">Last name</Label>
+                    <Input
+                      id="last_name"
+                      type="text"
+                      placeholder="Admin"
+                      autoComplete="family-name"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -150,23 +177,26 @@ export function LoginForm({
                 </div>
 
                 <div className="relative">
+                  {/* extra right padding so text doesn’t go under the toggle */}
                   <Input
                     id="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPasswords ? "text" : "password"}
                     required
                     placeholder="••••••••"
                     autoComplete={mode === "signin" ? "current-password" : "new-password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="pr-16"
                   />
                   <button
                     type="button"
-                    aria-pressed={showPassword}
-                    onClick={() => setShowPassword((s) => !s)}
+                    aria-pressed={showPasswords}
+                    aria-controls="password confirm"
+                    onClick={togglePasswords}
                     className="absolute inset-y-0 right-2 my-auto inline-flex h-8 items-center rounded-md px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    {showPassword ? "Hide" : "Show"}
-                    <span className="sr-only"> password</span>
+                    {showPasswords ? "Hide" : "Show"}
+                    <span className="sr-only">toggle password visibility</span>
                   </button>
                 </div>
               </div>
@@ -177,9 +207,10 @@ export function LoginForm({
                   <Label htmlFor="confirm">Confirm Password</Label>
                   <Input
                     id="confirm"
-                    type="password"
+                    type={showPasswords ? "text" : "password"}
                     required
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                   />
@@ -188,7 +219,13 @@ export function LoginForm({
 
               {/* Primary CTA */}
               <Button type="submit" className="w-full font-semibold" disabled={busy}>
-                {busy ? (mode === "signin" ? "Signing in..." : "Creating...") : mode === "signin" ? "Sign in" : "Sign up"}
+                {busy
+                  ? mode === "signin"
+                    ? "Signing in..."
+                    : "Creating..."
+                  : mode === "signin"
+                    ? "Sign in"
+                    : "Sign up"}
               </Button>
 
               {/* Footer link */}

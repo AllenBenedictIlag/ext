@@ -51,8 +51,8 @@ export default function ResetPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md p-6">
-      <Card>
+    <main className="min-h-[100dvh] grid place-items-center px-4">
+      <Card className="w-full max-w-md">
         <CardContent className="p-6">
           <h1 className="mb-2 text-2xl font-semibold">Reset password</h1>
           <p className="mb-6 text-sm text-muted-foreground">
@@ -86,17 +86,21 @@ export default function ResetPage() {
                 onChange={(e) => setConfirm(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex mt-5 -mb-6 justify-between items-center gap-3">
               <Button type="submit" disabled={busy}>
                 {busy ? "Saving..." : "Save new password"}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => router.push("/admins/signin")}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => router.push("/admins/signin")}
+              >
                 Back to sign in
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

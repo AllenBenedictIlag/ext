@@ -427,7 +427,7 @@ export default function FeedbackForm({
 
       // After successful save, leave the flow
       setSuccessOpen(false);
-      router.replace("/customer/auth");
+      router.replace("/auth/customer");
       resetForm();
     } catch (e: any) {
       setSaveError(e?.message || "Something went wrong while submitting. Please try again.");

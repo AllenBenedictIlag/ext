@@ -19,7 +19,6 @@ function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-// ------- GET /api/auth/admins/:id -------
 export async function GET(
   _req: Request,
   { params }: { params: { id: string } }

@@ -1,11 +1,13 @@
+// D:\Projects\sidebar\src\app\api\auth\admins\route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
 
 // ------- Zod Schemas -------
 const CreateAdminSchema = z.object({
-  name: z.string().min(1).max(120),
-  email: z.string().email().max(191),
+  first_name: z.string().min(1).max(100).trim(),
+  last_name: z.string().min(1).max(100).trim(),
+  email: z.string().email().max(191).trim(),
   password: z.string().min(1).max(255), // TODO: hash later
   role: z.enum(["SUPER_ADMIN", "ADMIN"]).default("ADMIN"),
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
@@ -27,7 +29,6 @@ function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-// ------- GET /api/auth/admins (list) -------
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -54,8 +55,11 @@ export async function GET(req: Request) {
       vals.push(status);
     }
     if (q && q.length > 0) {
-      whereParts.push("(name LIKE ? OR email LIKE ?)");
-      vals.push(`%${q}%`, `%${q}%`);
+      // Search first/last/concat + email
+      whereParts.push(
+        "(first_name LIKE ? OR last_name LIKE ? OR CONCAT_WS(' ', first_name, last_name) LIKE ? OR email LIKE ?)"
+      );
+      vals.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     }
     const where = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
 
@@ -63,7 +67,17 @@ export async function GET(req: Request) {
 
     const [rows] = await pool.query(
       `
-      SELECT id, name, email, role, status, last_login_at, created_at, updated_at
+      SELECT
+        id,
+        first_name,
+        last_name,
+        CONCAT_WS(' ', first_name, last_name) AS name,
+        email,
+        role,
+        status,
+        last_login_at,
+        created_at,
+        updated_at
       FROM admins
       ${where}
       ORDER BY created_at DESC
@@ -104,20 +118,30 @@ export async function POST(req: Request) {
     // Ensure unique email
     const [existsRows] = await pool.query(
       `SELECT id FROM admins WHERE email = ? LIMIT 1`,
-      [body.email.trim()]
+      [body.email]
     );
     if (Array.isArray(existsRows) && existsRows.length > 0) {
       return err("Email already exists", 409);
     }
 
+    // If your table STILL has a `name` column, this insert will populate it too.
+    // If you've already dropped `name`, use the variant shown below.
     const [result] = await pool.execute(
       `
-      INSERT INTO admins (name, email, password, role, status)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO admins (
+        first_name,
+        last_name,
+        email,
+        password,
+        role,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, ?);
     `,
       [
-        body.name.trim(),
-        body.email.trim(),
+        body.first_name,
+        body.last_name,
+        body.email,
         body.password, // TODO: hash later
         body.role,
         body.status,
@@ -128,8 +152,21 @@ export async function POST(req: Request) {
     const insertedId = result?.insertId;
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, role, status, last_login_at, created_at, updated_at
-       FROM admins WHERE id = ? LIMIT 1`,
+      `
+      SELECT
+        id,
+        first_name,
+        last_name,
+        CONCAT_WS(' ', first_name, last_name) AS name,
+        email,
+        role,
+        status,
+        last_login_at,
+        created_at,
+        updated_at
+      FROM admins
+      WHERE id = ? LIMIT 1
+    `,
       [insertedId]
     );
 
@@ -138,3 +175,20 @@ export async function POST(req: Request) {
     return err(e?.message ?? "Failed to create admin", 500);
   }
 }
+
+/*
+-- If you've ALREADY DROPPED the legacy `name` column,
+-- change the INSERT above to this simpler variant:
+
+INSERT INTO admins (
+  first_name,
+  last_name,
+  email,
+  password,
+  role,
+  status
+)
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- ...and remove the `name` column from the SELECT lists.
+*/

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
 
-const FORM_PATH = "/customer/feedback";
+const FORM_PATH = "/feedback";
 const SUMMARY_PATH = "/feedback/summary";
 
 const bodySchema = z.object({

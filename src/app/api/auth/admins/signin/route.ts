@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     const pool = getPool();
     const [rows] = await pool.query(
-      `SELECT id, name, email, password, role, status
+      `SELECT id, first_name, last_name, email, password, role, status
        FROM admins
        WHERE email = ? LIMIT 1`,
       [body.email.trim()]
@@ -40,7 +40,8 @@ export async function POST(req: Request) {
     return ok({
       data: {
         id: admin.id,
-        name: admin.name,
+        first_name: admin.first_name,
+        last_name: admin.last_name,
         email: admin.email,
         role: admin.role,
         status: admin.status,
