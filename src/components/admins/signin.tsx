@@ -1,4 +1,3 @@
-// D:\Projects\sidebar\src\components\admins\signin.tsx
 "use client";
 
 import Image from "next/image";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export function LoginForm({
   className,
@@ -52,9 +52,12 @@ export function LoginForm({
         }
 
         const role = json?.data?.role as "SUPER_ADMIN" | "ADMIN" | undefined;
+        const last = json?.data?.last_name ?? "";
         if (role === "SUPER_ADMIN") {
+          toast.success(`Welcome back, Super Admin ${last}`);
           router.push("/superadmin/superdashboard");
         } else if (role === "ADMIN") {
+          toast.success(`Welcome back, Admin ${last}`);
           router.push("/admin/dashboard");
         }
       } else {
@@ -85,6 +88,10 @@ export function LoginForm({
           setError(json?.error ?? "Sign up failed");
           return;
         }
+
+        const role = json?.data?.role ?? "Admin";
+        const last = json?.data?.last_name ?? "";
+        toast.success(`Account created! Welcome, ${role} ${last} 👋`);
         router.push("/admin/dashboard");
       }
     } catch (err: any) {
@@ -177,7 +184,6 @@ export function LoginForm({
                 </div>
 
                 <div className="relative">
-                  {/* extra right padding so text doesn’t go under the toggle */}
                   <Input
                     id="password"
                     type={showPasswords ? "text" : "password"}
