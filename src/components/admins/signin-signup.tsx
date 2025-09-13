@@ -98,7 +98,7 @@ export function SigninForm({
         const last = json?.data?.last_name ?? "";
         if (role === "SUPER_ADMIN") {
           toast.success(`Welcome back, Super Admin ${last} 🚀`, { id: "welcome" });
-          router.push("/superadmin/superdashboard");
+          router.push("/superadmin/dashboard");
         } else {
           toast.success(`Welcome back, Admin ${last}`, { id: "welcome" });
           router.push("/admin/dashboard");
