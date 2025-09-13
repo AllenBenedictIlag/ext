@@ -1,22 +1,24 @@
+// D:\Projects\sidebar\src\components\admins\signin-signup.tsx
 "use client";
 
 import Image from "next/image";
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { writeCachedUser } from "@/lib/user-cache";
 
 export function SigninForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const search = useSearchParams();
 
-  // One toggle controls both password fields
   const [showPasswords, setShowPasswords] = React.useState(false);
   const togglePasswords = () => setShowPasswords((s) => !s);
 
@@ -26,38 +28,79 @@ export function SigninForm({
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
 
-  // split name
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
 
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // show toast if middleware redirected here with reason
+  React.useEffect(() => {
+    const reason = search.get("reason");
+    if (!reason) return;
+    const common = { id: "auth-redirect" as const };
+    if (reason === "unauthenticated") {
+      toast.error("Unable to load the page. Please sign in to continue.", common);
+    } else if (reason === "expired") {
+      toast.error("Your session expired. Please sign in again.", common);
+    } else if (reason === "forbidden") {
+      toast.error("You don’t have permission to access that page.", common);
+    }
+  }, [search]);
+
+  function switchMode(next: "signin" | "signup") {
+    setMode(next);
+    // clear any server/client errors
+    setError(null);
+    setBusy(false);
+  
+    // clear all fields so we don't carry bad creds across modes
+    setEmail("");
+    setPassword("");
+    setConfirm("");
+    setFirstName("");
+    setLastName("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(null);
 
     try {
       if (mode === "signin") {
+        // ✅ FIX: use the signin endpoint (not /api/auth/admins)
         const res = await fetch("/api/auth/admins/signin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.trim(), password }),
         });
         const json = await res.json();
+
         if (!res.ok) {
-          setError(json?.error ?? "Sign in failed");
+          const msg = json?.error ?? "Sign in failed";
+          setError(msg);
+          toast.error(msg);
           return;
         }
+
+        // cache user for instant UI (sidebar, user menu)
+        writeCachedUser({
+          id: json.data.id,
+          firstName: json.data.first_name ?? "",
+          lastName: json.data.last_name ?? "",
+          email: json.data.email,
+          role: json.data.role, // "ADMIN" | "SUPER_ADMIN"
+        });
 
         const role = json?.data?.role as "SUPER_ADMIN" | "ADMIN" | undefined;
         const last = json?.data?.last_name ?? "";
         if (role === "SUPER_ADMIN") {
-          toast.success(`Welcome back, Super Admin ${last}`);
+          toast.success(`Welcome back, Super Admin ${last} 🚀`, { id: "welcome" });
           router.push("/superadmin/superdashboard");
-        } else if (role === "ADMIN") {
-          toast.success(`Welcome back, Admin ${last}`);
+        } else {
+          toast.success(`Welcome back, Admin ${last}`, { id: "welcome" });
           router.push("/admin/dashboard");
         }
       } else {
@@ -84,18 +127,31 @@ export function SigninForm({
           }),
         });
         const json = await res.json();
+
         if (!res.ok) {
-          setError(json?.error ?? "Sign up failed");
+          const msg = json?.error ?? "Sign up failed";
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
-        const role = json?.data?.role ?? "Admin";
+        // cache user for instant UI
+        writeCachedUser({
+          id: json.data.id,
+          firstName: json.data.first_name ?? "",
+          lastName: json.data.last_name ?? "",
+          email: json.data.email,
+          role: json.data.role,
+        });
+
         const last = json?.data?.last_name ?? "";
-        toast.success(`Account created! Welcome, ${role} ${last} 👋`);
+        toast.success(`Account created! Welcome, Admin ${last} 👋`, { id: "welcome" });
         router.push("/admin/dashboard");
       }
     } catch (err: any) {
-      setError(err?.message ?? "Network error");
+      const msg = err?.message ?? "Network error";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -169,7 +225,7 @@ export function SigninForm({
                 />
               </div>
 
-              {/* Password + (signin-only) Forgot link */}
+              {/* Password */}
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
@@ -228,29 +284,29 @@ export function SigninForm({
 
               {/* Footer link */}
               <p className="text-center text-sm text-muted-foreground">
-                {mode === "signin" ? (
-                  <>
-                    New to our system?{" "}
-                    <button
-                      type="button"
-                      onClick={() => setMode("signup")}
-                      className="underline underline-offset-4 hover:text-foreground"
-                    >
-                      Sign up
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => setMode("signin")}
-                      className="underline underline-offset-4 hover:text-foreground"
-                    >
-                      Sign in
-                    </button>
-                  </>
-                )}
+              {mode === "signin" ? (
+                <>
+                  New to our system?{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signup")}   // <-- was setMode("signup")
+                    className="underline underline-offset-4 hover:text-foreground"
+                  >
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signin")}   // <-- was setMode("signin")
+                    className="underline underline-offset-4 hover:text-foreground"
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
               </p>
             </div>
           </form>
