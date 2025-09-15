@@ -22,6 +22,7 @@ type Props = {
 export function NavMain({ sections, className }: Props) {
   const pathname = usePathname()
 
+  
   return (
     <>
       {sections.map((section) => (

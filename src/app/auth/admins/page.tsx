@@ -1,4 +1,4 @@
-import { SigninForm } from "@/components/admins/signin-signup"
+import { SigninForm } from "@/components/shared/signin-signup"
 
 export default function LoginPage() {
   return (
