@@ -327,3 +327,235 @@ export async function POST(req: NextRequest) {
     conn?.release?.();
   }
 }
+
+
+// Create Tables First
+
+// --admins table
+// CREATE TABLE admins (
+//     id INT AUTO_INCREMENT PRIMARY KEY,       
+//     first_name VARCHAR(100) NOT NULL, 
+//     last_name VARCHAR(100) NOT NULL,   
+//     email VARCHAR(255) NOT NULL UNIQUE,     
+//     password VARCHAR(255) NOT NULL,         
+//     role ENUM('ADMIN','SUPER_ADMIN') NOT NULL DEFAULT 'ADMIN', 
+//     status ENUM('ACTIVE','INACTIVE','SUSPENDED') NOT NULL DEFAULT 'ACTIVE',
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+// );
+
+// -- receipts table
+// CREATE TABLE receipts (
+//   id bigint unsigned NOT NULL AUTO_INCREMENT,
+//   receipt_number varchar(64) NOT NULL,
+//   issued_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//   expires_at datetime GENERATED ALWAYS AS ((issued_at + interval 7 day)) STORED,
+//   used_at datetime DEFAULT NULL,
+//   PRIMARY KEY (id),
+//   UNIQUE KEY receipt_number (receipt_number),
+//   UNIQUE KEY ux_receipts_receipt_number (receipt_number),
+//   KEY idx_issued_at (issued_at),
+//   KEY idx_expires_at (expires_at)
+// );
+
+
+// -- surveys table
+// CREATE TABLE surveys (
+//   id int NOT NULL AUTO_INCREMENT,
+//   title varchar(255) NOT NULL,
+//   status enum('DRAFT','PUBLISHED','ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+//   version int NOT NULL,
+//   published_at datetime DEFAULT NULL,
+//   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//   updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+//   PRIMARY KEY (id),
+//   UNIQUE KEY ux_survey_title_version (title,version)
+// );
+
+
+// -- questions table
+// CREATE TABLE questions (
+//   id int NOT NULL AUTO_INCREMENT,
+//   survey_id int NOT NULL,
+//   display_order int NOT NULL,
+//   question_key varchar(128) NOT NULL,
+//   prompt text NOT NULL,
+//   question_type enum('LIKERT','YES_NO','TEXT','SHORT_TEXT') NOT NULL,
+//   required tinyint NOT NULL DEFAULT '1',
+//   help_text varchar(255) DEFAULT NULL,
+//   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//   updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+//   PRIMARY KEY (id),
+//   UNIQUE KEY ux_question_key_per_survey (survey_id,question_key),
+//   CONSTRAINT fk_questions_survey FOREIGN KEY (survey_id) REFERENCES surveys (id) ON DELETE CASCADE
+// );
+
+
+// -- question_options table
+// CREATE TABLE question_options (
+//   id int NOT NULL AUTO_INCREMENT,
+//   question_id int NOT NULL,
+//   option_value varchar(64) NOT NULL,
+//   label varchar(128) NOT NULL,
+//   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//   updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+//   PRIMARY KEY (id),
+//   UNIQUE KEY ux_option_value_per_question (question_id,option_value),
+//   CONSTRAINT fk_options_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+// );
+
+
+// -- submissions table
+// CREATE TABLE submissions (
+//   id bigint unsigned NOT NULL AUTO_INCREMENT,
+//   receipt_id bigint unsigned NOT NULL,
+//   survey_id int NOT NULL,
+//   submitted_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//   PRIMARY KEY (id),
+//   UNIQUE KEY ux_submission_per_receipt (receipt_id),
+//   KEY fk_submissions_survey (survey_id),
+//   CONSTRAINT fk_submissions_receipt FOREIGN KEY (receipt_id) REFERENCES receipts (id) ON DELETE RESTRICT,
+//   CONSTRAINT fk_submissions_survey FOREIGN KEY (survey_id) REFERENCES surveys (id) ON DELETE RESTRICT
+// );
+
+
+// -- answers table
+// CREATE TABLE answers (
+//   id bigint unsigned NOT NULL AUTO_INCREMENT,
+//   submission_id bigint unsigned NOT NULL,
+//   question_id int NOT NULL,
+//   option_id int DEFAULT NULL,
+//   text_value text,
+//   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//   PRIMARY KEY (id),
+//   UNIQUE KEY ux_answer_once (submission_id,question_id),
+//   KEY fk_answers_question (question_id),
+//   KEY fk_answers_option (option_id),
+//   CONSTRAINT fk_answers_option FOREIGN KEY (option_id) REFERENCES question_options (id) ON DELETE SET NULL,
+//   CONSTRAINT fk_answers_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE RESTRICT,
+//   CONSTRAINT fk_answers_submission FOREIGN KEY (submission_id) REFERENCES submissions (id) ON DELETE CASCADE
+// );
+
+
+// ---
+
+// Seed the tables
+
+// START TRANSACTION;
+
+// -- 1) surveys
+// INSERT INTO surveys (id, title, status, version, published_at)
+// VALUES
+//   (1, 'Customer Experience v1', 'PUBLISHED', 1, CURRENT_TIMESTAMP);
+
+// -- 2) questions
+// -- NOTE: we set explicit IDs to preserve your original mapping (1..10, 12, 13).
+// INSERT INTO questions
+//   (id, survey_id, display_order, question_key, prompt, question_type, required, help_text)
+// VALUES
+//   (1,  1,  1,  'accurate',     'Was your order accurate?',                                           'YES_NO',    1, 'Accuracy is important...'),
+//   (2,  1,  2,  'overall',      'Based on your visit, how was your overall satisfaction?',            'LIKERT',    1, 'Because you’re important to us...'),
+//   (3,  1,  3,  'speed',        'How satisfied were you with the speed of service?',                  'LIKERT',    1, 'Time is running...'),
+//   (4,  1,  4,  'friendliness', 'How satisfied were you with the staff''s friendliness?',             'LIKERT',    1, 'Your happiness matters...'),
+//   (5,  1,  5,  'quality',      'Rate the quality of food and drinks.',                               'LIKERT',    1, 'Happy or Sad...'),
+//   (6,  1,  6,  'taste',        'Rate the taste and aroma of your order.',                            'LIKERT',    1, 'Coffee Yummy, Coffee Good...'),
+//   (7,  1,  7,  'ambience',     'Rate the ambience of the shop.',                                     'LIKERT',    1, 'Cozy or...'),
+//   (8,  1,  8,  'cleanliness',  'Rate the cleanliness of the shop.',                                  'LIKERT',    1, 'Shine it...'),
+//   (9,  1,  9,  'revisit',      'Based on your experience, would you visit us again?',                'YES_NO',    1, 'Let’s meet again...'),
+//   (10, 1, 10, 'comments',      'Any additional comments or suggestions?',                            'TEXT',      0, 'Your insights are important to us...'),
+//   (12, 1, 11, 'name',          'Your can enter your name.',                                          'SHORT_TEXT',0, 'Your name helps us recognize you.'),
+//   (13, 1, 12, 'contact',       'You can provide your contact number or email.',                      'SHORT_TEXT',0, 'So we can reach you if needed.');
+
+// -- 3) question_options
+// -- Likert for questions 2..8: values '1'..'4'
+// INSERT INTO question_options (question_id, option_value, label)
+// VALUES
+//   -- 'overall' (2)
+//   (2, '1', 'Extremely Disatisfied'),
+//   (2, '2', 'Disatisfied'),
+//   (2, '3', 'Satisfied'),
+//   (2, '4', 'Extremely Satisfied'),
+
+//   -- 'speed' (3)
+//   (3, '1', 'Extremely Disatisfied'),
+//   (3, '2', 'Disatisfied'),
+//   (3, '3', 'Satisfied'),
+//   (3, '4', 'Extremely Satisfied'),
+
+//   -- 'friendliness' (4)
+//   (4, '1', 'Extremely Disatisfied'),
+//   (4, '2', 'Disatisfied'),
+//   (4, '3', 'Satisfied'),
+//   (4, '4', 'Extremely Satisfied'),
+
+//   -- 'quality' (5)
+//   (5, '1', 'Extremely Disatisfied'),
+//   (5, '2', 'Disatisfied'),
+//   (5, '3', 'Satisfied'),
+//   (5, '4', 'Extremely Satisfied'),
+
+//   -- 'taste' (6)
+//   (6, '1', 'Extremely Disatisfied'),
+//   (6, '2', 'Disatisfied'),
+//   (6, '3', 'Satisfied'),
+//   (6, '4', 'Extremely Satisfied'),
+
+//   -- 'ambience' (7)
+//   (7, '1', 'Extremely Disatisfied'),
+//   (7, '2', 'Disatisfied'),
+//   (7, '3', 'Satisfied'),
+//   (7, '4', 'Extremely Satisfied'),
+
+//   -- 'cleanliness' (8)
+//   (8, '1', 'Extremely Disatisfied'),
+//   (8, '2', 'Disatisfied'),
+//   (8, '3', 'Satisfied'),
+//   (8, '4', 'Extremely Satisfied'),
+
+//   -- YES/NO for 'accurate' (1) and 'revisit' (9)
+//   (1, 'yes', 'Yes'),
+//   (1, 'no',  'No'),
+//   (9, 'yes', 'Yes'),
+//   (9, 'no',  'No');
+
+// COMMIT;
+
+// ---
+
+
+// Seed table: 
+
+// Run Seed submissions
+
+// Dry Run
+// curl -Method POST "http://localhost:3000/api/seed/submissions" -Headers @{ "Content-Type"="application/json" } -Body '{"year":2025,"month":9,"dryRun":true}'
+
+// Actual Insert
+// curl -Method POST "http://localhost:3000/api/seed/submissions" -Headers @{ "Content-Type"="application/json" } -Body '{"year":2025,"month":9}'
+
+// ---
+
+// Run Seed full
+
+// Dry Run
+// curl -Method POST "http://localhost:3000/api/seed/full" -Headers @{ "Content-Type"="application/json" } -Body '{"months":2,"dryRun":true}'
+
+// Actual Insert
+// curl -Method POST "http://localhost:3000/api/seed/full" -Headers @{ "Content-Type"="application/json" } -Body '{"months":24}'
+
+// ---
+
+
+// Run Seed  backfill-answers
+
+// Dry Run
+// curl -Method POST "http://localhost:3000/api/seed/backfill-answers" -Headers @{ "Content-Type"="application/json" } -Body '{"dryRun":true,"limitPairs":2000}'
+  
+// Actual Answer
+// curl -Method POST "http://localhost:3000/api/seed/backfill-answers" -Headers @{ "Content-Type"="application/json" } -Body '{}'
+
+
+// Tune optional answer rate (e.g., 35%)
+// curl -Method POST "http://localhost:3000/api/seed/backfill-answers" -Headers @{ "Content-Type"="application/json" } -Body '{"optionalRate":0.35}'
+
+
