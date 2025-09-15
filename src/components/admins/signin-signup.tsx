@@ -1,4 +1,4 @@
-// D:\Projects\sidebar\src\components\admins\signin-signup.tsx
+//src\components\admins\signin-signup.tsx
 "use client";
 
 import Image from "next/image";
