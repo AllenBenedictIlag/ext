@@ -1,4 +1,4 @@
-// D:\Projects\sidebar\src\app\api\auth\admins\route.ts
+//src\app\api\auth\admins\route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
