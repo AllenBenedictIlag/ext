@@ -55,12 +55,12 @@ function readPeriodFromURL(): Period {
 const pct = (x: number, d: number) => (d ? Math.round((x / d) * 1000) / 10 : 0);
 
 /** ---------- Colors (use your CSS vars) ---------- */
-const C_POS     = "hsl(var(--chart-2))";
-const C_NEG     = "hsl(var(--destructive))";
-const C_POS_LIK = "hsl(var(--chart-1))";
-const C_POS_YN  = "hsl(var(--chart-3))";
-const C_NEG_LIK = "hsl(var(--chart-4))";
-const C_NEG_YN  = "hsl(var(--chart-5))";
+const C_POS     = "var(--chart-2)";
+const C_NEG     = "var(--destructive)";
+const C_POS_LIK = "var(--chart-1)";
+const C_POS_YN  = "var(--chart-3)";
+const C_NEG_LIK = "var(--chart-4)";
+const C_NEG_YN  = "var(--chart-5)";
 
 /** ---------- Component ---------- */
 export default function PositiveNegative() {
@@ -141,10 +141,10 @@ export default function PositiveNegative() {
 
   // Outer ring (source split)
   const outer = [
-    { name: "Pos · Likert", value: totals.positiveLikert, fill: C_POS_LIK },
-    { name: "Pos · Yes/No", value: totals.positiveYesNo, fill: C_POS_YN },
-    { name: "Neg · Likert", value: totals.negativeLikert, fill: C_NEG_LIK },
-    { name: "Neg · Yes/No", value: totals.negativeYesNo, fill: C_NEG_YN },
+    { name: "Likert", value: totals.positiveLikert, fill: C_POS_LIK },
+    { name: "Yes/No", value: totals.positiveYesNo, fill: C_POS_YN },
+    { name: "Likert", value: totals.negativeLikert, fill: C_NEG_LIK },
+    { name: "Yes/No", value: totals.negativeYesNo, fill: C_NEG_YN },
   ];
 
   const TooltipContent = ({ active, payload }: any) => {
@@ -170,20 +170,24 @@ export default function PositiveNegative() {
         </div>
       </CardHeader>
 
+      {/* Use same pattern as your Funnel: let RC own ~90% of the content area */}
       <CardContent className="h-[calc(100%-4rem)] flex items-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart margin={{ top: 0, right: 8, bottom: 8, left: 8 }}>
             <RechartsTooltip content={<TooltipContent />} wrapperStyle={{ outline: "none" }} />
-            <Legend verticalAlign="bottom" height={28} iconSize={10} wrapperStyle={{ fontSize: 12 }} />
 
+            {/* Smaller legend text + icons so it won’t push the chart */}
+            <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+
+            {/* INNER RING — use percent radii so it scales with container */}
             <Pie
               data={inner}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={38}
-              outerRadius={64}
+              innerRadius="32%"   // was ~38px
+              outerRadius="52%"   // was ~64px
               paddingAngle={1}
               isAnimationActive={!loading}
             >
@@ -195,25 +199,40 @@ export default function PositiveNegative() {
                   textAnchor="middle"
                   dominantBaseline="middle"
                   className="fill-foreground"
-                  style={{ fontSize: 13, fontWeight: 600 }}
+                  style={{ fontSize: 11, fontWeight: 600 }}
                 >
                   {total.toLocaleString()} ans
                 </text>
               )}
             </Pie>
 
+            {/* OUTER RING — also percent radii; a slim ring helps labels fit */}
             <Pie
               data={outer}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={70}
-              outerRadius={88}
+              innerRadius="56%"   // was 70px
+              outerRadius="71%"   // was 88px
               paddingAngle={1}
               isAnimationActive={!loading}
               labelLine={false}
-              label={(p) => (p.value > 0 ? `${p.name} ${pct(p.value, total)}%` : "")}
+              // smaller labels; clamp to non-zero to avoid clutter
+              label={(p) =>
+                p.value > 0 ? (
+                  <text
+                    x={p.x}
+                    y={p.y}
+                    textAnchor={p.textAnchor}
+                    dominantBaseline="central"
+                    style={{ fontSize: 12 }}
+                    className="fill-foreground"
+                  >
+                    {`${p.name} ${pct(p.value, total)}%`}
+                  </text>
+                ) : null
+              }
             >
               {outer.map((s, i) => <Cell key={i} fill={s.fill} />)}
             </Pie>
@@ -226,4 +245,5 @@ export default function PositiveNegative() {
       </CardFooter>
     </Card>
   );
+
 }
