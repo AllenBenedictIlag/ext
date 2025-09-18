@@ -58,6 +58,9 @@ html { font-size: 18px; }
 
   --tracking-normal: 0.025em;
   --spacing: 0.25rem;
+
+
+
 }
 
 .dark {
@@ -107,6 +110,8 @@ html { font-size: 18px; }
   --shadow-xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 8px 10px -2px hsl(0 0% 0% / 0.10);
   --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
  
+
+
 }
 
 @theme inline {

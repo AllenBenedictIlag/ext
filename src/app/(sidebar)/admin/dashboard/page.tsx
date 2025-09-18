@@ -1,12 +1,15 @@
+// src/app/(sidebar)/admin/dashboard/page.tsx
 "use client";
 
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { ChartAreaInteractive } from "@/components/visualizations/chart-area-interactive";
-import { SectionCards } from "@/components/visualizations/section-cards";
-import { ChartBarLabelCustom } from "@/components/visualizations/sample-chart";
-import { TableDemo } from "@/components/visualizations/sample-table";
 import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
+import { SectionCards } from "@/components/admin/dashboard/section-cards";
+import Scratch from "@/components/admin/dashboard/scratch";
+import FunnelCard from "@/components/admin/dashboard/funnel-card";
+import { MonthlyTrendCard } from "@/components/admin/dashboard/monthly-trend-card";
+import ConversionFunnelCard from "@/components/admin/dashboard/funnel";
+import TrendCard from "@/components/admin/dashboard/trend-card";
 
 
 export default function DashboardPage() {
@@ -15,46 +18,26 @@ export default function DashboardPage() {
     if (saved) {
       const user = JSON.parse(saved);
       const role =
-        user.role === "SUPER_ADMIN"
-          ? "Super Admin"
-          : user.role === "ADMIN"
-          ? "Admin"
-          : "User";
+        user.role === "SUPER_ADMIN" ? "Super Admin" :
+        user.role === "ADMIN"       ? "Admin"       : "User";
       toast.success(`Welcome back, ${role} ${user.last_name}`);
     }
   }, []);
 
-  // Example: listen for filter changes (charts can do this too)
-  useEffect(() => {
-    function onFilters(e: Event) {
-      const detail = (e as CustomEvent).detail;
-      // console.log("filters changed:", detail);
-      // TODO: trigger data reloads for charts based on detail
-    }
-    window.addEventListener("dashboard:filters", onFilters as any);
-    return () => window.removeEventListener("dashboard:filters", onFilters as any);
-  }, []);
-
-
-
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <GlobalQuickFilter/>
-      {/* Keep your existing content for now */}
-      <SectionCards />
-
-
-      <div className="px-4 lg:px-6">
-        <ChartAreaInteractive />
+      <GlobalQuickFilter />
+      <SectionCards/>
+      {/* <FunnelRow/>
+      <Scratch/> */}
+      {/* ⬇️ Keep the same layout: 2-col + 3-col in a 5-col grid */}
+      <div className="grid grid-cols-1 gap-4 px-6 md:grid-cols-5">
+        <MonthlyTrendCard/>
+        <FunnelCard />
       </div>
-
-      <div className="flex flex-row gap-4 px-4 lg:px-6">
-        <div className="w-7/12 flex flex-col">
-          <TableDemo />
-        </div>
-        <div className="w-5/12 flex flex-col">
-          <ChartBarLabelCustom />
-        </div>
+      <div className="grid grid-cols-1 gap-4 px-6 md:grid-cols-5">
+        <ConversionFunnelCard/> 
+        <TrendCard/>
       </div>
     </div>
   );

@@ -309,7 +309,7 @@ export function GlobalQuickFilter({
   return (
     <div
       className={[
-        "w-full border-b bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50",
+        "w-full border-b -mt-4 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50",
         "px-4 lg:px-6 py-2 flex flex-wrap items-center gap-2",
         className ?? "",
       ].join(" ")}
@@ -319,7 +319,8 @@ export function GlobalQuickFilter({
       {/* Window preview (committed) */}
       <div className="text-xs text-muted-foreground">
         <span className="inline-flex items-center rounded-md bg-muted px-3 py-1">
-          Window:&nbsp;<strong className="ml-1">{committedFromLabel}</strong>&nbsp;→&nbsp;<strong>{committedToLabel}</strong>
+          Date Range:&nbsp;<strong className="ml-1">{committedFromLabel}</strong>
+          &nbsp;→&nbsp;<strong>{committedToLabel}</strong>
         </span>
       </div>
 
@@ -406,7 +407,7 @@ export function GlobalQuickFilter({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="outline" onClick={reset} title="Reset to last 30 days">
+        <Button onClick={reset} title="Reset to last 30 days">
           <IconRefresh className="mr-2 h-4 w-4" />
           Reset
         </Button>
