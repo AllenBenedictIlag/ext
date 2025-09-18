@@ -406,11 +406,11 @@ export function GlobalQuickFilter({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-
+{/* 
         <Button onClick={reset} title="Reset to last 30 days">
           <IconRefresh className="mr-2 h-4 w-4" />
           Reset
-        </Button>
+        </Button> */}
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   ResponsiveContainer,
@@ -25,37 +24,65 @@ import {
 } from "recharts";
 
 /* ---------- Colors ---------- */
-const COLOR_RECEIPTS = "#F59E0B";   // Bars
-const COLOR_SUBMITS  = "#D97706";   // Line
-const COLOR_PERCENT  = "#7C2D12";   // Area
+const COLOR_RECEIPTS = "#F59E0B"; // Bars
+const COLOR_SUBMITS = "#D97706";  // Line
+const COLOR_PERCENT = "#7C2D12";  // Area
+
+/* ---------- Types ---------- */
+type TrendPoint = {
+  name: string;
+  // raw values for tooltip
+  receipts: number;
+  submissions: number;
+  responsePct: number;    // already 0..100
+  // scaled values for plotting (0..100 vs anchorMax)
+  receiptsPct: number;
+  submissionsPct: number;
+};
+
+type ApiTrend = {
+  window: { from: string; to: string };
+  anchorMax: number;
+  yTicks: number[]; // [0,25,50,75,100]
+  months: (TrendPoint & { y: number; m: number; from: string; to: string })[];
+};
 
 /* ---------- Utils ---------- */
 const fmtNum = (n: number) => n.toLocaleString("en-US");
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
-/* ---------- Custom Tooltip (smaller text) ---------- */
+/* ---------- Custom Tooltip (uses RAW counts) ---------- */
 function TrendTooltip({ active, payload, label }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
-
-  const receipts    = Number(payload.find((p) => p.dataKey === "receipts")?.value ?? 0);
-  const submissions = Number(payload.find((p) => p.dataKey === "submissions")?.value ?? 0);
-  const responsePct = Number(payload.find((p) => p.dataKey === "responsePct")?.value ?? 0);
+  const datum: any = payload[0]?.payload ?? {};
+  const receipts = Number(datum.receipts ?? 0);
+  const submissions = Number(datum.submissions ?? 0);
+  const responsePct = Number(datum.responsePct ?? 0);
 
   return (
     <div className="rounded-md border bg-popover text-popover-foreground shadow-md px-2.5 py-1.5 text-xs">
       <div className="font-medium mb-1">{label}</div>
       <div className="flex items-center gap-2">
-        <span className="inline-block size-2.5 rounded-sm" style={{ backgroundColor: COLOR_RECEIPTS }} />
+        <span
+          className="inline-block size-2.5 rounded-sm"
+          style={{ backgroundColor: COLOR_RECEIPTS }}
+        />
         <span className="text-muted-foreground">Receipts:</span>
         <span className="ml-auto tabular-nums">{fmtNum(receipts)}</span>
       </div>
       <div className="mt-0.5 flex items-center gap-2">
-        <span className="inline-block size-2.5 rounded-sm" style={{ backgroundColor: COLOR_SUBMITS }} />
+        <span
+          className="inline-block size-2.5 rounded-sm"
+          style={{ backgroundColor: COLOR_SUBMITS }}
+        />
         <span className="text-muted-foreground">Submissions:</span>
         <span className="ml-auto tabular-nums">{fmtNum(submissions)}</span>
       </div>
       <div className="mt-0.5 flex items-center gap-2">
-        <span className="inline-block size-2.5 rounded-sm" style={{ backgroundColor: COLOR_PERCENT }} />
+        <span
+          className="inline-block size-2.5 rounded-sm"
+          style={{ backgroundColor: COLOR_PERCENT }}
+        />
         <span className="text-muted-foreground">Response %:</span>
         <span className="ml-auto tabular-nums">{fmtPct(responsePct)}</span>
       </div>
@@ -65,29 +92,36 @@ function TrendTooltip({ active, payload, label }: TooltipProps<number, string>) 
 
 /* ---------- Component ---------- */
 export default function TrendCard() {
-  // Sample months to match your mock; Feb ’25 explicitly 3000 / 270 → 9.0%
-  const base = [
-    { name: "Jan '25", receipts: 2400, submissions: 210 },
-    { name: "Feb '25", receipts: 3000, submissions: 270 },
-    { name: "Mar '25", receipts: 2000, submissions: 160 },
-    { name: "Apr '25", receipts: 2200, submissions: 180 },
-    { name: "May '25", receipts: 2600, submissions: 220 },
-    { name: "Jun '25", receipts: 2700, submissions: 230 },
-    { name: "Jul '25", receipts: 2800, submissions: 240 },
-    { name: "Aug '25", receipts: 2700, submissions: 235 },
-  ];
+  const [data, setData] = React.useState<TrendPoint[]>([]);
+  const [period, setPeriod] = React.useState<string>("");
+  const [loading, setLoading] = React.useState<boolean>(true);
+  const [anchorMax, setAnchorMax] = React.useState<number>(1); // for left raw-axis labels
 
-  const data = base.map((m) => ({
-    ...m,
-    responsePct: m.receipts ? (m.submissions / m.receipts) * 100 : 0,
-  }));
+  // This card ignores GlobalQuickFilter — fetch fixed last-10-months window
+  React.useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/admin/dashboard/trend", { cache: "no-store" });
+        const json: ApiTrend = await res.json();
+        setData(json.months ?? []);
+        setPeriod(`${json.window.from} → ${json.window.to}`);
+        setAnchorMax(Math.max(1, Number(json.anchorMax || 1)));
+      } catch {
+        setData([]);
+        setAnchorMax(1);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return (
-    <Card className="md:col-span-3 h-160 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-5 h-90 rounded-xl border shadow-sm bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-base">Monthly Trend</CardTitle>
-          <CardDescription className="text-xs">Receipts • Submissions • Response %</CardDescription>
+          <CardTitle>Monthly Trend</CardTitle>
+          <CardDescription>Receipts • Submissions • Response % •</CardDescription>
         </div>
       </CardHeader>
 
@@ -95,64 +129,63 @@ export default function TrendCard() {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={data}
-            aria-label="Monthly trend: Receipts (bar), Submissions (line), Response % (area)"
-            margin={{ top: 8, right: 28, bottom: 6, left: 10 }}
+            aria-label="Monthly trend (scaled to 0–100%): Receipts (bar), Submissions (line), Response % (area)"
+            margin={{ top: 8, right: 28, bottom: 0, left: 10 }}
           >
             <CartesianGrid stroke="hsl(var(--muted) / 0.35)" />
-            <XAxis
-              dataKey="name"
-              tickMargin={6}
-              tick={{ fontSize: 11 }}
-              height={28}
-            />
-            {/* Left axis: counts */}
+            <XAxis dataKey="name" tickMargin={6} tick={{ fontSize: 12 }} height={28} />
+
+            {/* LEFT axis = RAW counts, labels mirror 0..100 ticks using anchorMax */}
             <YAxis
-              yAxisId="counts"
-              allowDecimals={false}
+              yAxisId="raw"
+              domain={[0, 100]}
+              ticks={[0, 25, 50, 75, 100]}
               tick={{ fontSize: 11 }}
-              tickFormatter={(v) => fmtNum(v as number)}
-              width={40}
+              width={48}
+              tickFormatter={(v) =>
+                fmtNum(Math.round((Number(v) / 100) * (anchorMax || 1)))
+              }
             />
-            {/* Right axis: percent */}
+
+            {/* RIGHT axis = PERCENT scale for the series */}
             <YAxis
               yAxisId="percent"
               orientation="right"
               domain={[0, 100]}
+              ticks={[0, 25, 50, 75, 100]}
               tick={{ fontSize: 11 }}
-              tickFormatter={(v) => `${v}%`}
               width={36}
+              tickFormatter={(v) => `${v}%`}
             />
 
             <RechartsTooltip content={<TrendTooltip />} wrapperStyle={{ outline: "none" }} />
-            <Legend
-              wrapperStyle={{ fontSize: 11 }}
-              iconSize={10}
-              height={24}
-            />
+            <Legend wrapperStyle={{ fontSize: 16 }} iconSize={10} height={12} />
 
-            {/* BAR = Receipts (left axis) */}
+            {/* BAR = Receipts (scaled) */}
             <Bar
-              yAxisId="counts"
-              dataKey="receipts"
+              yAxisId="percent"
+              dataKey="receiptsPct"
               name="Receipts"
               barSize={24}
               fill={COLOR_RECEIPTS}
               radius={[6, 6, 0, 0]}
+              isAnimationActive={!loading}
             />
 
-            {/* LINE = Submissions (left axis) */}
+            {/* LINE = Submissions (scaled) */}
             <Line
-              yAxisId="counts"
+              yAxisId="percent"
               type="monotone"
-              dataKey="submissions"
+              dataKey="submissionsPct"
               name="Submissions"
               stroke={COLOR_SUBMITS}
               strokeWidth={2}
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
+              isAnimationActive={!loading}
             />
 
-            {/* AREA = Response % (right axis) */}
+            {/* AREA = Response % (already 0..100) */}
             <Area
               yAxisId="percent"
               type="monotone"
@@ -161,14 +194,11 @@ export default function TrendCard() {
               stroke={COLOR_PERCENT}
               fill={COLOR_PERCENT}
               fillOpacity={0.22}
+              isAnimationActive={!loading}
             />
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
-
-      <CardFooter className="px-6 text-[11px] text-muted-foreground">
-        Response % = submissions ÷ receipts
-      </CardFooter>
     </Card>
   );
 }

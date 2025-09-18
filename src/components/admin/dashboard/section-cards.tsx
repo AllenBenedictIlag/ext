@@ -215,12 +215,12 @@ export function SectionCards(props: Props) {
 
   // Color tokens per tile, matching your original inline styles
   const colorVars: Record<Kpi["key"], string> = {
-    overall_satisfaction: "var(--chart-bittersweet-dark)",
-    order_accuracy: "var(--chart-mint-dark)",
-    staff_service: "var(--chart-blue-jeans-dark)",
-    food_quality: "var(--chart-lavander-dark)",
-    receipts_issued: "var(--chart-sunflower-dark)",
-    response_rate: "var(--chart-dark-gray-dark)",
+    overall_satisfaction: "var(--color-1)",
+    order_accuracy: "var(--color-2)",
+    staff_service: "var(--color-3)",
+    food_quality: "var(--color-4)",
+    receipts_issued: "var(--color-5)",
+    response_rate: "var(--color-6)"
   };
 
   // Order the tiles like your original layout

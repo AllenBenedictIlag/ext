@@ -227,19 +227,19 @@ export async function GET(req: Request) {
       kpis: [
         {
           key: "overall_satisfaction",
-          title: "Overall Satisfaction",
+          title: "Satisfaction",
           value: round1(overallPct.curr),
           unit: "%", delta_pp: round1(pctDelta(overallPct.curr, overallPct.prev)),
         },
         {
           key: "order_accuracy",
-          title: "Order's Accuracy",
+          title: "Accuracy",
           value: round1(accuracyPct.curr),
           unit: "%", delta_pp: round1(pctDelta(accuracyPct.curr, accuracyPct.prev)),
         },
         {
           key: "staff_service",
-          title: "Staff's Service",
+          title: "Service",
           value: round1(servicePct.curr),
           unit: "%", delta_pp: round1(pctDelta(servicePct.curr, servicePct.prev)),
         },

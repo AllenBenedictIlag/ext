@@ -1,4 +1,4 @@
-// src/components/admin/dashboard/funnel-card.tsx
+// src/components/admin/dashboard/sample.tsx
 "use client";
 
 import * as React from "react";
@@ -25,7 +25,7 @@ import {
 import { Tooltip } from "@radix-ui/react-tooltip";
 
 /* ---------- Component ---------- */
-export default function TrendCard() {
+export default function Sample() {
   const data = [
   {
     name: 'Page A',

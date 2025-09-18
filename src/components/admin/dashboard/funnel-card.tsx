@@ -122,7 +122,7 @@ export default function FunnelCard() {
   const CustomTooltip = makeFunnelTooltip(topValue);
 
   return (
-    <Card className="md:col-span-2 h-120 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-3 h-90 rounded-xl border shadow-sm bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Conversion Funnel</CardTitle>
@@ -131,7 +131,7 @@ export default function FunnelCard() {
       </CardHeader>
 
       <CardContent className="h-[calc(100%-4rem)] flex items-center">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="90%">
           <FunnelChart aria-label="Conversion funnel" margin={{ top: 0, right: 8, bottom: 8, left: 8 }}>
             <RechartsTooltip
               content={<CustomTooltip />}
@@ -153,7 +153,7 @@ export default function FunnelCard() {
       </CardContent>
 
       <CardFooter className="px-6 text-xs text-muted-foreground">
-        {period ? `Showing ${period.from} → ${period.to}` : "Loading..."}
+        {period ? ` ${period.from} → ${period.to}` : "Loading..."}
       </CardFooter>
     </Card>
   );
