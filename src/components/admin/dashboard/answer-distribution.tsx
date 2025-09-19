@@ -110,7 +110,7 @@ function DistTooltip({ active, payload }: { active?: boolean; payload?: any[] })
 
 /* ---------- Component ---------- */
 export default function AnswerDistribution({
-  cardHeightClass = "h-90",
+  cardHeightClass = "h-120",
   segmentLabels = DEFAULT_LABELS,
   segmentColors = DEFAULT_COLORS,
 }: {
@@ -178,7 +178,7 @@ export default function AnswerDistribution({
 
   return (
     <Card className={`md:col-span-5 ${cardHeightClass} rounded-xl border shadow-sm bg-card`}>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between ">
         <div>
           <CardTitle>Answer Distribution</CardTitle>
           <CardDescription>Distribution of Likert answers (1–4) or Yes/No</CardDescription>
@@ -190,7 +190,7 @@ export default function AnswerDistribution({
           <BarChart
             data={data}
             aria-label="Answer distribution per question (100% stacked)"
-            margin={{ top: 8, right: 24, bottom: 4, left: 10 }}
+            margin={{ top: 8, right: 52, bottom: 4, left: 32 }}
           >
             <CartesianGrid stroke="var(--border)" />
             <XAxis

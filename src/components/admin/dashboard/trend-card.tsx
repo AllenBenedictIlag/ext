@@ -130,7 +130,7 @@ export default function TrendCard() {
           <ComposedChart
             data={data}
             aria-label="Monthly trend (scaled to 0–100%): Receipts (bar), Submissions (line), Response % (area)"
-            margin={{ top: 8, right: 28, bottom: 0, left: 10 }}
+            margin={{ top: 8, right: 36, bottom: 0, left: 16 }}
           >
             <CartesianGrid stroke="hsl(var(--muted) / 0.35)" />
             <XAxis dataKey="name" tickMargin={6} tick={{ fontSize: 12 }} height={28} />

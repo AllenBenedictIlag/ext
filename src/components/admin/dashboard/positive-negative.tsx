@@ -162,7 +162,7 @@ export default function PositiveNegative() {
   };
 
   return (
-    <Card className="md:col-span-3 h-90 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-3 h-120 rounded-xl border shadow-sm ">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Positive % • Negative %</CardTitle>
@@ -171,9 +171,9 @@ export default function PositiveNegative() {
       </CardHeader>
 
       {/* Use same pattern as your Funnel: let RC own ~90% of the content area */}
-      <CardContent className="h-[calc(100%-4rem)] flex items-center">
+      <CardContent className="h-[calc(100%-4rem)] flex items-center -mt-3">
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart margin={{ top: 0, right: 8, bottom: 8, left: 8 }}>
+          <PieChart margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
             <RechartsTooltip content={<TooltipContent />} wrapperStyle={{ outline: "none" }} />
 
             {/* Smaller legend text + icons so it won’t push the chart */}
