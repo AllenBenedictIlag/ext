@@ -1,4 +1,4 @@
-// src/components/admin/dashboard/composite-satisfaction-trend.tsx
+// src/components/admin/dashboard/composite-satisfaction.tsx
 "use client";
 
 import * as React from "react";
@@ -75,7 +75,7 @@ function TrendTooltip({ active, payload }: any) {
 }
 
 /* ---------- Component ---------- */
-export default function CompositeSatisfactionTrend() {
+export default function CompositeSatisfaction() {
   const [range, setRange] = React.useState(getInitialRange);
   const [series, setSeries] = React.useState<ApiPoint[] | null>(null);
   const [cadence, setCadence] = React.useState<{ tickEveryDays: number; labelEveryDays: number } | null>(null);

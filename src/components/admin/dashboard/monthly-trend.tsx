@@ -102,7 +102,7 @@ export default function TrendCard() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/admin/dashboard/trend", { cache: "no-store" });
+        const res = await fetch("/api/admin/dashboard/monthly-trend", { cache: "no-store" });
         const json: ApiTrend = await res.json();
         setData(json.months ?? []);
         setPeriod(`${json.window.from} → ${json.window.to}`);

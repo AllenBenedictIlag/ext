@@ -144,7 +144,7 @@ export default function RevisitIntent() {
   const empty = !loading && all.length === 0;
 
   return (
-    <Card className="md:col-span-8 h-90 rounded-xl border shadow-sm bg-card ">
+    <Card className="md:col-span-8 h-90 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Revisit Intent Over Time</CardTitle>
@@ -162,12 +162,12 @@ export default function RevisitIntent() {
             <AreaChart
               data={data}
               aria-label="Revisit Intent trend (% Yes)"
-              margin={{ top: 8, right: 24, bottom: 6, left: 10 }}
+              margin={{ top: 8, right: 24, bottom: 0, left: 10 }}
             >
               <defs>
                 <linearGradient id="revisitFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0.06} />
+                  <stop offset="30%" stopColor="var(--chart-1)"/>
+                  <stop offset="100%" stopColor="var(--chart-2)"/>
                 </linearGradient>
               </defs>
 

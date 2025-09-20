@@ -1,4 +1,4 @@
-// src/components/admin/dashboard/funnel-card.tsx
+// src/components/admin/dashboard/conversion-funnel.tsx
 "use client";
 
 import * as React from "react";
@@ -32,9 +32,9 @@ type FunnelApiResponse = {
 
 /* ---------- Defaults (UI stays the same; values get replaced) ---------- */
 const DEFAULT_STAGES: Stage[] = [
-  { value: 0, name: "Issued",    fill: "var(--chart-sunflower-dark)" },
-  { value: 0, name: "Used",      fill: "#83a6ed" },
-  { value: 0, name: "Submitted", fill: "#8dd1e1" },
+  { value: 0, name: "Issued",    fill: "var(--chart-1)" },
+  { value: 0, name: "Used",      fill: "var(--chart-2)" },
+  { value: 0, name: "Submitted", fill: "var(--chart-5)" },
 ];
 
 /* ---------- Tooltip (unchanged visuals) ---------- */
@@ -82,16 +82,16 @@ export default function FunnelCard() {
 
   // Always fetch with explicit from/to to match GlobalQuickFilter exactly
   const fetchData = React.useCallback(async (from: string, to: string) => {
-    const url = `/api/admin/dashboard/funnel?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const url = `/api/admin/dashboard/conversion-funnel?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j: FunnelApiResponse = await res.json();
 
     setPeriod(j.period);
     setStages([
-      { name: "Issued",    value: j.issued,    fill: "var(--chart-sunflower-dark)" },
-      { name: "Used",      value: j.used,      fill: "#83a6ed" },
-      { name: "Submitted", value: j.submitted, fill: "#8dd1e1" },
+      { name: "Issued",    value: j.issued,    fill: "var(--chart-1)" },
+      { name: "Used",      value: j.used,      fill: "var(--chart-2)" },
+      { name: "Submitted", value: j.submitted, fill: "var(--chart-5)" },
     ]);
   }, []);
 

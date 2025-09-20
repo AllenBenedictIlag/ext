@@ -179,9 +179,9 @@ export function SectionCards(props: Props) {
     let url: string;
 
     if (effective.kind === "preset") {
-      url = `/api/admin/dashboard/section-cards?range=${encodeURIComponent(effective.range)}`;
+      url = `/api/admin/dashboard/kpi-tiles?range=${encodeURIComponent(effective.range)}`;
     } else {
-      url = `/api/admin/dashboard/section-cards?range=custom&start=${encodeURIComponent(
+      url = `/api/admin/dashboard/kpi-tiles?range=custom&start=${encodeURIComponent(
         effective.start!
       )}&end=${encodeURIComponent(effective.end!)}`;
     }

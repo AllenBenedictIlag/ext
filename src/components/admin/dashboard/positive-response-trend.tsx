@@ -60,7 +60,7 @@ function fmtX(bucket: Bucket, x: string) {
 }
 
 async function fetchMiniTrend(f: Filters, bucket: Bucket) {
-  const u = new URL("/api/admin/dashboard/mini-trend-per-question", window.location.origin);
+  const u = new URL("/api/admin/dashboard/positive-response-trend", window.location.origin);
   u.searchParams.set("from", f.from);
   u.searchParams.set("to", f.to);
   u.searchParams.set("bucket", bucket);
@@ -214,7 +214,7 @@ export default function MiniTrendPerQuestion() {
                     <Line
                       type="monotone"
                       dataKey="positivePct"
-                      stroke="var(--chart-2)"
+                      stroke="var(--chart-1)"
                       strokeWidth={2}
                       dot={{ r: 2 }}
                       activeDot={{ r: 4 }}

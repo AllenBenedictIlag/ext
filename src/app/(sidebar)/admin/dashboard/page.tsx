@@ -4,14 +4,14 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
-import { SectionCards } from "@/components/admin/dashboard/section-cards";
-import FunnelCard from "@/components/admin/dashboard/funnel-card";
-import TrendCard from "@/components/admin/dashboard/trend-card";
+import { SectionCards } from "@/components/admin/dashboard/kpi-tiles";
+import FunnelCard from "@/components/admin/dashboard/conversion-funnel";
+import TrendCard from "@/components/admin/dashboard/monthly-trend";
 import AnswerDistribution from "@/components/admin/dashboard/answer-distribution";
 import PositiveNegative from "@/components/admin/dashboard/positive-negative";
-import MiniTrendPerQuestion from "@/components/admin/dashboard/mini-trend-per-question";
-import CompositeSatisfactionTrend from "@/components/admin/dashboard/composite-satisfaction-trend";
+import MiniTrendPerQuestion from "@/components/admin/dashboard/positive-response-trend";
 import RevisitIntent from "@/components/admin/dashboard/revisit-intent";
+import CompositeSatisfaction from "@/components/admin/dashboard/composite-satisfaction";
 
 
 export default function DashboardPage() {
@@ -46,7 +46,7 @@ export default function DashboardPage() {
 
       
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <CompositeSatisfactionTrend />
+        <CompositeSatisfaction/>
       </div>
       
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
