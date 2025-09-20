@@ -1,4 +1,3 @@
-// src/components/admin/dashboard/mini-trend-per-question.tsx
 "use client";
 
 import * as React from "react";
@@ -13,7 +12,7 @@ import {
 /* ---------- Types ---------- */
 type QuestionType = "LIKERT" | "YES_NO";
 type Bucket = "day" | "week" | "month" | "quarter";
-type SeriesPoint = { x: string; positivePct: number }; // unified x
+type SeriesPoint = { x: string; positivePct: number; responses: number };
 type MiniSeries = { question_key: string; question_type: QuestionType; series: SeriesPoint[] };
 type Filters = { from: string; to: string };
 
@@ -74,21 +73,27 @@ async function fetchMiniTrend(f: Filters, bucket: Bucket) {
   };
 }
 
-/* ---------- Tooltip ---------- */
-function MiniTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  const v = payload[0]?.value as number;
-  return (
-    <div className="rounded-md border bg-popover px-2 py-1 text-xs shadow-sm">
-      <div className="font-medium">{label}</div>
-      <div className="text-muted-foreground">{v}% Positive</div>
-    </div>
-  );
-}
-
 function prettyLabel(key: string) {
   if (!key) return "";
   return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/* ---------- Tooltip ---------- */
+function MiniTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload as { positivePct?: number; responses?: number } | undefined;
+  const pct = Math.round(d?.positivePct ?? 0);   // ensure 0 when missing
+  const responses = d?.responses ?? 0;           // ensure 0 when missing
+
+  return (
+    <div className="rounded-md border bg-popover px-2 py-1 text-xs shadow-sm">
+      <div className="font-medium">{label}</div>
+      <div className="text-muted-foreground">
+        Positive: <strong className="text-foreground">{pct}%</strong>
+      </div>
+      <div className="text-muted-foreground">Responses: {responses}</div>
+    </div>
+  );
 }
 
 /* ---------- Component ---------- */
@@ -180,7 +185,7 @@ export default function MiniTrendPerQuestion() {
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-sm font-semibold tracking-normal">
                     {prettyLabel(q.question_key)}
-                    </div>
+                  </div>
                   <div className="text-[10px] uppercase text-muted-foreground">
                     {q.question_type === "LIKERT" ? "Likert" : "Yes/No"}
                   </div>
@@ -191,6 +196,7 @@ export default function MiniTrendPerQuestion() {
                     data={q.series.map((p) => ({
                       name: fmtX(bucket, p.x),
                       positivePct: p.positivePct,
+                      responses: p.responses,
                     }))}
                     margin={{ top: 6, right: 8, bottom: 4, left: 8 }}
                     aria-label={`Positive % trend for ${q.question_key}`}

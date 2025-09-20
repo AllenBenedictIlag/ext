@@ -1,4 +1,3 @@
-// src/app/api/admin/dashboard/mini-trend-per-question/route.ts
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
 
@@ -145,18 +144,24 @@ export async function GET(req: Request) {
       question_type: "LIKERT" | "YES_NO";
       x: string;       // day: YYYY-MM-DD; week: YYYY-MM-DD (Mon); month/quarter: YYYY-MM
       pos_cnt: number;
-      ans_cnt: number;
+      ans_cnt: number; // responses
     };
 
     const map = new Map<
       string,
-      { question_type: "LIKERT" | "YES_NO"; points: { x: string; positivePct: number }[] }
+      { question_type: "LIKERT" | "YES_NO"; points: { x: string; positivePct: number; responses: number }[] }
     >();
 
     (rows as Row[]).forEach((r) => {
       const pct = r.ans_cnt > 0 ? Math.round((10000 * r.pos_cnt) / r.ans_cnt) / 100 : 0;
-      if (!map.has(r.question_key)) map.set(r.question_key, { question_type: r.question_type, points: [] });
-      map.get(r.question_key)!.points.push({ x: r.x, positivePct: pct });
+      if (!map.has(r.question_key)) {
+        map.set(r.question_key, { question_type: r.question_type, points: [] });
+      }
+      map.get(r.question_key)!.points.push({
+        x: r.x,
+        positivePct: pct,
+        responses: r.ans_cnt, // ensure 0 is returned when no rows
+      });
     });
 
     const series = Array.from(map.entries()).map(([question_key, v]) => ({

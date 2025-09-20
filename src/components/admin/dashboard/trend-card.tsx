@@ -24,9 +24,9 @@ import {
 } from "recharts";
 
 /* ---------- Colors ---------- */
-const COLOR_RECEIPTS = "#F59E0B"; // Bars
-const COLOR_SUBMITS = "#D97706";  // Line
-const COLOR_PERCENT = "#7C2D12";  // Area
+const COLOR_RECEIPTS = "var(--chart-1)"; // Bars
+const COLOR_SUBMITS = "var(--chart-3)";  // Line
+const COLOR_PERCENT = "var(--chart-5)";  // Area
 
 /* ---------- Types ---------- */
 type TrendPoint = {
