@@ -12,6 +12,8 @@ import PositiveNegative from "@/components/admin/dashboard/positive-negative";
 import MiniTrendPerQuestion from "@/components/admin/dashboard/positive-response-trend";
 import RevisitIntent from "@/components/admin/dashboard/revisit-intent";
 import CompositeSatisfaction from "@/components/admin/dashboard/composite-satisfaction";
+import DriverRevisit from "@/components/admin/dashboard/driver-revisit";
+import TimeToUse from "@/components/admin/dashboard/time-to-use";
 
 
 export default function DashboardPage() {
@@ -32,7 +34,7 @@ export default function DashboardPage() {
       <SectionCards/>
 
      
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+      {/* <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <TrendCard/>
         <FunnelCard />
       </div>
@@ -51,6 +53,14 @@ export default function DashboardPage() {
       
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <RevisitIntent/>
+      </div> */}
+
+      {/* <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <DriverRevisit/>
+      </div> */}
+
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <TimeToUse/>
       </div>
     </div>
   );
