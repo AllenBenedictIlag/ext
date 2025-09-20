@@ -81,7 +81,7 @@ function MiniTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-md border bg-popover px-2 py-1 text-xs shadow-sm">
       <div className="font-medium">{label}</div>
-      <div className="text-muted-foreground">{v}% positive</div>
+      <div className="text-muted-foreground">{v}% Positive</div>
     </div>
   );
 }

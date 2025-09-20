@@ -10,6 +10,7 @@ import TrendCard from "@/components/admin/dashboard/trend-card";
 import AnswerDistribution from "@/components/admin/dashboard/answer-distribution";
 import PositiveNegative from "@/components/admin/dashboard/positive-negative";
 import MiniTrendPerQuestion from "@/components/admin/dashboard/mini-trend-per-question";
+import CompositeSatisfactionTrend from "@/components/admin/dashboard/composite-satisfaction-trend";
 
 
 export default function DashboardPage() {
@@ -40,6 +41,10 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <MiniTrendPerQuestion />
       </div>
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <CompositeSatisfactionTrend />
+      </div>
+      
     </div>
   );
 }
