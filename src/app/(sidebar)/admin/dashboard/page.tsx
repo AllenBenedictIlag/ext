@@ -14,6 +14,10 @@ import RevisitIntent from "@/components/admin/dashboard/revisit-intent";
 import CompositeSatisfaction from "@/components/admin/dashboard/composite-satisfaction";
 import DriverRevisit from "@/components/admin/dashboard/driver-revisit";
 import TimeToUse from "@/components/admin/dashboard/time-to-use";
+import CumulativeUsage from "@/components/admin/dashboard/cumulative-usage";
+import SubmissionsPattern from "@/components/admin/dashboard/submissions-pattern";
+import DeadlineEffect from "@/components/admin/dashboard/deadline-effect";
+import CommentVolume from "@/components/admin/dashboard/comment-volume";
 
 
 export default function DashboardPage() {
@@ -34,7 +38,7 @@ export default function DashboardPage() {
       <SectionCards/>
 
      
-      {/* <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <TrendCard/>
         <FunnelCard />
       </div>
@@ -53,15 +57,26 @@ export default function DashboardPage() {
       
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <RevisitIntent/>
-      </div> */}
+      </div>
 
-      {/* <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <DriverRevisit/>
-      </div> */}
+      </div>
 
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <TimeToUse/>
+        <CumulativeUsage/>
       </div>
+
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <SubmissionsPattern/>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <DeadlineEffect/>
+      </div>
+
+  
     </div>
   );
 }

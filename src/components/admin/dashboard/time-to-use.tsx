@@ -138,7 +138,7 @@ export default function TimeToUse() {
               margin={{ top: 8, right: 16, bottom: 0, left: 10 }}
             >
                 <CartesianGrid
-                stroke="var(--chart-1)"
+                stroke="var(--chart-2)"
                 strokeOpacity={0.7}
                 strokeDasharray="3 3"
                 />

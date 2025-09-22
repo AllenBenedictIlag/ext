@@ -58,7 +58,7 @@ import {
       label: "Admin",
       items: [
         { title: "Dashboard",  url: "/admin/dashboard",  icon: "dashboard" },
-        { title: "Schedules",  url: "/admin/schedules",  icon: "calendar" },
+        { title: "Comments",  url: "/admin/comments",  icon: "calendar" },
         { title: "Analytics",  url: "/admin/analytics",  icon: "chart" },
       ],
     },
