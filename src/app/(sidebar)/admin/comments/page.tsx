@@ -1,5 +1,5 @@
-import RecentComments from "@/components/admin/analytics/recent-comments";
-import CommentVolume from "@/components/admin/dashboard/comment-volume";
+import RecentComments from "@/components/admin/comments/recent-comments";
+import CommentVolume from "@/components/admin/comments/comment-volume";
 import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
 
 export default function CommentsPage() {

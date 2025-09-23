@@ -1,4 +1,4 @@
-// src\components\admin\dashboard\recent-comments.tsx
+// src\components\admin\comments\recent-comments.tsx
 "use client";
 
 import * as React from "react";
@@ -672,7 +672,7 @@ export default function RecentComments() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/recent-comments?from=${f.from}&to=${f.to}&limit=250`,
+        `/api/admin/comments/recent-comments?from=${f.from}&to=${f.to}&limit=250`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();
@@ -701,7 +701,7 @@ export default function RecentComments() {
     setDetailLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/recent-comments/summary?receiptNumber=${encodeURIComponent(
+        `/api/admin/comments/recent-comments/summary?receiptNumber=${encodeURIComponent(
           row.receipt_number
         )}`,
         { cache: "no-store" }

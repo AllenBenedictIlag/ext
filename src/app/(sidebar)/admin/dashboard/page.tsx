@@ -17,7 +17,7 @@ import TimeToUse from "@/components/admin/dashboard/time-to-use";
 import CumulativeUsage from "@/components/admin/dashboard/cumulative-usage";
 import SubmissionsPattern from "@/components/admin/dashboard/submissions-pattern";
 import DeadlineEffect from "@/components/admin/dashboard/deadline-effect";
-import CommentVolume from "@/components/admin/dashboard/comment-volume";
+import CommentVolume from "@/components/admin/comments/comment-volume";
 
 
 export default function DashboardPage() {
