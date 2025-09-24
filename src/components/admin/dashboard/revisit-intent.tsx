@@ -159,62 +159,72 @@ export default function RevisitIntent() {
           <div className="w-full text-center text-sm text-muted-foreground">— No data —</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={data}
-              aria-label="Revisit Intent trend (% Yes)"
-              margin={{ top: 8, right: 24, bottom: 0, left: 10 }}
-            >
-              <defs>
-                <linearGradient id="revisitFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="30%" stopColor="var(--chart-1)"/>
-                  <stop offset="100%" stopColor="var(--chart-2)"/>
-                </linearGradient>
-              </defs>
+          <AreaChart
+            data={data}
+            aria-label="Revisit Intent trend (% Yes)"
+            margin={{ top: 8, right: 24, bottom: 0, left: 10 }}
+          >
+            <defs>
+              <linearGradient id="revisitFill" x1="0" y1="0" x2="0" y2="1">
+                {/* Use fully-opaque (or near) stops */}
+                <stop offset="30%" stopColor={`var(--chart-1)`} stopOpacity={0.95} />
+                <stop offset="100%" stopColor={`var(--chart-2)`} stopOpacity={0.95} />
+              </linearGradient>
+            </defs>
 
-              <CartesianGrid stroke="hsl(var(--muted) / 0.35)" />
+            {/* 1) Grid FIRST = drawn behind */}
+            <CartesianGrid
+              stroke={`var(--muted-foreground)`}
+              strokeOpacity={0.25}        // make it subtle
+              // optional:
+              // vertical={true}
+              // horizontal={true}
+            />
 
-              <XAxis
-                dataKey="name"
-                ticks={ticks}
-                tickMargin={6}
-                tick={{ fontSize: 12 }}
-                height={28}
-                tickFormatter={(value: string) => labelByDay.get(value) ?? ""}
+            {/* 2) Axes */}
+            <XAxis
+              dataKey="name"
+              ticks={ticks}
+              tickMargin={6}
+              tick={{ fontSize: 12 }}
+              height={28}
+              tickFormatter={(value: string) => labelByDay.get(value) ?? ""}
+            />
+            <YAxis
+              domain={[0, 100]}
+              ticks={[0, 20, 40, 60, 80, 100]}
+              tick={{ fontSize: 11 }}
+              width={36}
+              tickFormatter={(v) => `${v}%`}
+            />
+
+            <RechartsTooltip content={<TrendTooltip />} wrapperStyle={{ outline: "none" }} />
+
+            {/* 3) Series LAST = drawn above */}
+            {!allNull ? (
+              <Area
+                type="monotone"
+                dataKey="pct"
+                name="Revisit Yes %"
+                stroke={`var(--chart-1)`}
+                strokeWidth={2}
+                fill="url(#revisitFill)"
+                fillOpacity={1}            // ensure fully opaque fill
+                activeDot={{ r: 4 }}
+                connectNulls={false}
+                isAnimationActive
               />
+            ) : (
+              <>
+                <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="4 6" />
+                <text x="50%" y="50%" textAnchor="middle" fill="var(--muted-foreground)" fontSize="12">
+                  No answered revisit-intent data in this period.
+                </text>
+              </>
+            )}
+          </AreaChart>
+        </ResponsiveContainer>
 
-              <YAxis
-                domain={[0, 100]}
-                ticks={[0, 20, 40, 60, 80, 100]}
-                tick={{ fontSize: 11 }}
-                width={36}
-                tickFormatter={(v) => `${v}%`}
-              />
-
-              <RechartsTooltip content={<TrendTooltip />} wrapperStyle={{ outline: "none" }} />
-
-              {!allNull ? (
-                <Area
-                  type="monotone"
-                  dataKey="pct"
-                  name="Revisit Yes %"
-                  stroke="hsl(var(--chart-1))"
-                  strokeWidth={2}
-                  fill="url(#revisitFill)"
-                  dot={{ r: 2 }}
-                  activeDot={{ r: 4 }}
-                  connectNulls={false}
-                  isAnimationActive
-                />
-              ) : (
-                <>
-                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 6" />
-                  <text x="50%" y="50%" textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize="12">
-                    No answered revisit-intent data in this period.
-                  </text>
-                </>
-              )}
-            </AreaChart>
-          </ResponsiveContainer>
         )}
       </CardContent>
 

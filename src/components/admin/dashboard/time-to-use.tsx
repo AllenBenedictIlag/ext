@@ -142,6 +142,7 @@ export default function TimeToUse() {
                 strokeOpacity={0.7}
                 strokeDasharray="3 3"
                 />
+                
               <XAxis dataKey="label" tickMargin={8} tick={{ fontSize: 12 }} height={30}/>
               <YAxis tick={{ fontSize: 11 }} width={46} tickLine={false} axisLine={false} />
               <RechartsTooltip content={<HistogramTooltip />} wrapperStyle={{ outline: "none" }} cursor={{ fill: "hsl(var(--muted) / 0.35)" }} />

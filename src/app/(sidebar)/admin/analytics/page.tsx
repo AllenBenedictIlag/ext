@@ -3,6 +3,7 @@
 import AnswerDensity from "@/components/admin/analytics/answer-density";
 import CompletionMatrix from "@/components/admin/analytics/completion-matrix";
 import OptionBalance from "@/components/admin/analytics/option-balance";
+import RequiredCoverage from "@/components/admin/analytics/required-coverage";
 import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
 
 export default function AnalyticsPage() {
@@ -13,6 +14,8 @@ export default function AnalyticsPage() {
         <CompletionMatrix />
         <AnswerDensity />
         <OptionBalance/>
+        <RequiredCoverage/>
+        
         </div>
       </div>
     )

@@ -309,7 +309,7 @@ export function GlobalQuickFilter({
   return (
     <div
       className={[
-        "w-full border-b -mt-4 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50",
+        "w-full border-b -mt-4 bg-background backdrop-blur supports-[backdrop-filter]:bg-background/50",
         "px-4 lg:px-6 py-2 flex flex-wrap items-center gap-2",
         className ?? "",
       ].join(" ")}
