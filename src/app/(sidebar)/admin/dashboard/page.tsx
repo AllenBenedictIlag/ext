@@ -15,8 +15,8 @@ import CompositeSatisfaction from "@/components/admin/statistics/composite-satis
 import DriverRevisit from "@/components/admin/statistics/driver-revisit";
 import TimeToUse from "@/components/admin/statistics/time-to-use";
 import CumulativeUsage from "@/components/admin/statistics/cumulative-usage";
-import SubmissionsPattern from "@/components/admin/dashboard/submissions-pattern";
-import DeadlineEffect from "@/components/admin/dashboard/deadline-effect";
+import SubmissionsPattern from "@/components/admin/statistics/submissions-pattern";
+import DeadlineEffect from "@/components/admin/statistics/deadline-effect";
 import CommentVolume from "@/components/admin/comments/comment-volume";
 
 

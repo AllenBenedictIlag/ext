@@ -76,7 +76,7 @@ export default function DeadlineEffect() {
   async function fetchData(f: { from: string; to: string }) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/dashboard/deadline-effect?from=${f.from}&to=${f.to}`, {
+      const res = await fetch(`/api/admin/statistics/deadline-effect?from=${f.from}&to=${f.to}`, {
         cache: "no-store",
       });
       const json: ApiResponse = await res.json();

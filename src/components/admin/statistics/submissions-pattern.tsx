@@ -113,7 +113,7 @@ export default function SubmissionsPattern() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/submissions-pattern?from=${f.from}&to=${f.to}`,
+        `/api/admin/statistics/submissions-pattern?from=${f.from}&to=${f.to}`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();
