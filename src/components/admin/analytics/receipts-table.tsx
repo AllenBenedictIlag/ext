@@ -1,14 +1,13 @@
-// src\components\admin\dashboard\receipts-table.tsx
+// src/components/admin/dashboard/receipts-table.tsx
 "use client";
 
 /**
- * Receipts Table (SAMPLE_DATA, client-only)
- * - Production-ready React component for Next.js App Router (TypeScript)
+ * Receipts Table — wired to a dedicated API (no GlobalQuickFilter, no URL/localStorage).
+ * - Production-ready React (Next.js App Router, TypeScript)
  * - shadcn/ui + Tailwind
- * - No fetching; renders immediately with typed SAMPLE_DATA (>= 12 rows)
- * - Sticky header, scrollable body, zebra rows, hover highlight, ellipsis + tooltips
- * - Controls: Search, Page size (10/25/50/100), Column visibility, Export CSV (with AlertDialog)
- * - Sorting & pagination (client-side)
+ * - Sticky header, scrollable body (max-h ~600px), zebra rows, hover highlight
+ * - Client controls: search, page size (10/25/50/100), column visibility, Export CSV (with AlertDialog)
+ * - Client sorting & pagination (can be swapped to server later using the same API params)
  * - Row accent via `highlightRows` prop (default true)
  */
 
@@ -81,22 +80,15 @@ import { cn } from "@/lib/utils";
 
 export type Status = "USED" | "EXPIRED_UNUSED" | "NOT_USED";
 
+/** Row shape returned by the API and rendered by the table */
 export type Row = {
-  /** 1) receipts.receipt_number */
   receipt_number: string;
-  /** 2) receipts.issued_at (ISO) */
-  issued_at: string;
-  /** 3) receipts.expires_at (ISO) */
-  expires_at: string;
-  /** 4) receipts.used_at (ISO | null) */
-  used_at: string | null;
-  /** 5) derived status */
+  issued_at: string;      // ISO
+  expires_at: string;     // ISO
+  used_at: string | null; // ISO or null
   status: Status;
-  /** 6) TIMESTAMPDIFF(DAY, issued_at, used_at) when used, else null */
   days_to_use: number | null;
-  /** 7) join submissions by receipt_id (unique if used) */
   submission_id: number | null;
-  /** 8) TIMESTAMPDIFF(DAY, issued_at, NOW()) */
   age_days: number;
 };
 
@@ -120,7 +112,7 @@ type DataTableProps<T extends Record<string, unknown>> = {
   defaultSort?: SortState<T>;
   highlightRows?: boolean;
   searchKeys?: (keyof T & string)[];
-  /** Provide a stable key generator to avoid relying on unknown fields */
+  /** Provide a stable key generator to avoid relying on unknown fields inside generics */
   rowKey?: (row: T, index: number) => string | number;
 };
 
@@ -148,148 +140,6 @@ const formatDatePH = (iso: string | null): string => {
 const truncate = (text: string, max = 22): string =>
   text.length > max ? text.slice(0, max - 1) + "…" : text;
 
-const formatWords = (n: number): string => `${n.toLocaleString()} words`;
-
-/** date math */
-const addDays = (d: Date, days: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
-};
-const diffDays = (a: Date, b: Date) =>
-  Math.floor((a.getTime() - b.getTime()) / (24 * 3600 * 1000));
-
-/** derive status */
-const deriveStatus = (row: Pick<Row, "used_at" | "expires_at">, now = new Date()): Status => {
-  if (row.used_at) return "USED";
-  const exp = new Date(row.expires_at);
-  return now.getTime() > exp.getTime() ? "EXPIRED_UNUSED" : "NOT_USED";
-};
-
-/** compute days_to_use + age_days on the fly to keep SAMPLE_DATA realistic any day */
-const withDerived = (rows: Omit<Row, "status" | "days_to_use" | "age_days">[]): Row[] => {
-  const now = new Date();
-  return rows.map((r) => {
-    const status = deriveStatus(r, now);
-    const days_to_use =
-      r.used_at ? diffDays(new Date(r.used_at), new Date(r.issued_at)) : null;
-    const age_days = diffDays(now, new Date(r.issued_at));
-    return { ...r, status, days_to_use, age_days };
-  });
-};
-
-/* =========================================================================
-   SAMPLE_DATA (>= 12 rows, realistic mix)
-   ========================================================================= */
-
-const SAMPLE_DATA: Row[] = withDerived([
-  {
-    receipt_number: "QXZ-482019",
-    issued_at: addDays(new Date(), -1).toISOString(),
-    expires_at: addDays(new Date(), 6).toISOString(),
-    used_at: addDays(new Date(), -1).toISOString(), // used same day
-    submission_id: 7001001,
-  },
-  {
-    receipt_number: "JRM-882771",
-    issued_at: addDays(new Date(), -2).toISOString(),
-    expires_at: addDays(new Date(), 5).toISOString(),
-    used_at: null, // not yet used
-    submission_id: null,
-  },
-  {
-    receipt_number: "KTA-105339",
-    issued_at: addDays(new Date(), -10).toISOString(),
-    expires_at: addDays(new Date(), -3).toISOString(), // expired
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "BRN-773401",
-    issued_at: addDays(new Date(), -4).toISOString(),
-    expires_at: addDays(new Date(), 3).toISOString(),
-    used_at: addDays(new Date(), -2).toISOString(),
-    submission_id: 7001002,
-  },
-  {
-    receipt_number: "LMA-553210",
-    issued_at: addDays(new Date(), -14).toISOString(),
-    expires_at: addDays(new Date(), -7).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "VPK-229941",
-    issued_at: addDays(new Date(), -6).toISOString(),
-    expires_at: addDays(new Date(), 1).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "RFE-440882",
-    issued_at: addDays(new Date(), -3).toISOString(),
-    expires_at: addDays(new Date(), 4).toISOString(),
-    used_at: addDays(new Date(), -1).toISOString(),
-    submission_id: 7001003,
-  },
-  {
-    receipt_number: "CPD-908321",
-    issued_at: addDays(new Date(), -20).toISOString(),
-    expires_at: addDays(new Date(), -13).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "NQH-337710",
-    issued_at: addDays(new Date(), -7).toISOString(),
-    expires_at: addDays(new Date(), 0).toISOString(),
-    used_at: addDays(new Date(), -6).toISOString(),
-    submission_id: 7001004,
-  },
-  {
-    receipt_number: "ZTU-661204",
-    issued_at: addDays(new Date(), -11).toISOString(),
-    expires_at: addDays(new Date(), -4).toISOString(),
-    used_at: addDays(new Date(), -8).toISOString(), // used before expiry
-    submission_id: 7001005,
-  },
-  {
-    receipt_number: "MPR-770014",
-    issued_at: addDays(new Date(), -1).toISOString(),
-    expires_at: addDays(new Date(), 6).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "HAC-550991",
-    issued_at: addDays(new Date(), -8).toISOString(),
-    expires_at: addDays(new Date(), -1).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "DLS-101777",
-    issued_at: addDays(new Date(), -5).toISOString(),
-    expires_at: addDays(new Date(), 2).toISOString(),
-    used_at: addDays(new Date(), -4).toISOString(),
-    submission_id: 7001006,
-  },
-  {
-    receipt_number: "EKO-412398",
-    issued_at: addDays(new Date(), -9).toISOString(),
-    expires_at: addDays(new Date(), -2).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-  {
-    receipt_number: "WAV-210034",
-    issued_at: addDays(new Date(), -2).toISOString(),
-    expires_at: addDays(new Date(), 5).toISOString(),
-    used_at: null,
-    submission_id: null,
-  },
-]);
-
 /* =========================================================================
    UI atoms
    ========================================================================= */
@@ -316,13 +166,18 @@ function EllipsizedWithTooltip({
 }
 
 function StatusBadge({ status }: { status: Status }) {
-  if (status === "USED") {
-    return <Badge className="px-2">USED</Badge>;
-  }
-  if (status === "EXPIRED_UNUSED") {
-    return <Badge variant="destructive" className="px-2">EXPIRED</Badge>;
-  }
-  return <Badge variant="secondary" className="px-2">NOT USED</Badge>;
+  if (status === "USED") return <Badge className="px-2">USED</Badge>;
+  if (status === "EXPIRED_UNUSED")
+    return (
+      <Badge variant="destructive" className="px-2">
+        EXPIRED
+      </Badge>
+    );
+  return (
+    <Badge variant="secondary" className="px-2">
+      NOT USED
+    </Badge>
+  );
 }
 
 /* =========================================================================
@@ -369,9 +224,7 @@ const COLUMNS: ColumnDef<Row>[] = [
     header: "Used At (PH)",
     accessor: (r) => r.used_at,
     formatter: (v) => (
-      <span className="whitespace-nowrap">
-        {v ? formatDatePH(String(v)) : "—"}
-      </span>
+      <span className="whitespace-nowrap">{v ? formatDatePH(String(v)) : "—"}</span>
     ),
     width: "190px",
     sortable: true,
@@ -511,7 +364,7 @@ function DataTable<T extends Record<string, unknown>>({
 
   const exportCSV = () => {
     const headers = visibleColumns.map((c) => c.header);
-    const rows = pageRows.map((row, idx) =>
+    const rows = pageRows.map((row) =>
       visibleColumns.map((c) => {
         const raw = c.accessor(row);
         if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
@@ -787,6 +640,81 @@ function getCell<T extends Record<string, unknown>, K extends keyof T & string>(
 }
 
 /* =========================================================================
+   Remote fetch wrapper (no URL/localStorage, no events)
+   ========================================================================= */
+
+type ApiResponse = {
+  data: Row[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+    sort: string;
+    dir: "asc" | "desc";
+    q: string | null;
+  };
+};
+
+function ReceiptsRemoteData({
+  children,
+}: {
+  children: (rows: Row[], loading: boolean, error: boolean) => React.ReactNode;
+}) {
+  const [rows, setRows] = React.useState<Row[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        const res = await fetch(
+          "/api/admin/dashboard/receipts-table?limit=1000&sort=issued_at&dir=desc",
+          { method: "GET", cache: "no-store" }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as ApiResponse;
+        if (!alive) return;
+        setRows(Array.isArray(json.data) ? json.data : []);
+      } catch {
+        if (alive) setError(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return <>{children(rows, loading, error)}</>;
+}
+
+/* =========================================================================
+   Skeleton (loading)
+   ========================================================================= */
+
+function SkeletonTable() {
+  return (
+    <div className="rounded-md border overflow-hidden">
+      <div className="max-h-[600px] overflow-auto">
+        <div className="p-4 space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-8 gap-3">
+              {Array.from({ length: 8 }).map((__, j) => (
+                <div key={j} className="h-4 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
    Card wrapper (final export)
    ========================================================================= */
 
@@ -794,7 +722,7 @@ export type ReceiptsTableCardProps = {
   highlightRows?: boolean;
 };
 
-export default function ReceiptsTable({
+export default function ReceiptsTableCard({
   highlightRows = true,
 }: ReceiptsTableCardProps) {
   return (
@@ -808,14 +736,34 @@ export default function ReceiptsTable({
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">
-        <DataTable<Row>
-          data={SAMPLE_DATA}
-          columns={COLUMNS}
-          defaultSort={{ id: "issued_at", dir: "desc" }}
-          highlightRows={highlightRows}
-          searchKeys={["receipt_number", "status"]}
-          rowKey={(r) => r.receipt_number}
-        />
+        <ReceiptsRemoteData>
+          {(rows, loading, error) => {
+            if (loading) return <SkeletonTable />;
+            if (error)
+              return (
+                <div className="text-sm text-destructive">
+                  Failed to load receipts. Please retry.
+                </div>
+              );
+            if (rows.length === 0)
+              return (
+                <div className="text-sm text-muted-foreground">
+                  — No receipts yet —
+                </div>
+              );
+
+            return (
+              <DataTable<Row>
+                data={rows}
+                columns={COLUMNS}
+                defaultSort={{ id: "issued_at", dir: "desc" }}
+                highlightRows={highlightRows}
+                searchKeys={["receipt_number", "status"]}
+                rowKey={(r) => r.receipt_number}
+              />
+            );
+          }}
+        </ReceiptsRemoteData>
       </CardContent>
     </Card>
   );

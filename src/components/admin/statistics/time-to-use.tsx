@@ -86,7 +86,7 @@ export default function TimeToUse() {
     setLoading(true);
     try {
       // You can add &step=6 here if you want to force bin size from the client.
-      const res = await fetch(`/api/admin/dashboard/time-to-use?from=${f.from}&to=${f.to}`, { cache: "no-store" });
+      const res = await fetch(`/api/admin/statistics/time-to-use?from=${f.from}&to=${f.to}`, { cache: "no-store" });
       const json: ApiResponse = await res.json();
       setBins(json.bins);
       setTotal(json.totalUsed);

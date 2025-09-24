@@ -85,7 +85,7 @@ export default function CompositeSatisfaction() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/composite-satisfaction?from=${f.from}&to=${f.to}`,
+        `/api/admin/statistics/composite-satisfaction?from=${f.from}&to=${f.to}`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();

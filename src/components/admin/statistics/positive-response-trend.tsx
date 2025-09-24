@@ -60,7 +60,7 @@ function fmtX(bucket: Bucket, x: string) {
 }
 
 async function fetchMiniTrend(f: Filters, bucket: Bucket) {
-  const u = new URL("/api/admin/dashboard/positive-response-trend", window.location.origin);
+  const u = new URL("/api/admin/statistics/positive-response-trend", window.location.origin);
   u.searchParams.set("from", f.from);
   u.searchParams.set("to", f.to);
   u.searchParams.set("bucket", bucket);

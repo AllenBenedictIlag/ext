@@ -112,7 +112,7 @@ export default function DriverRevisit() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/dashboard/driver-revisit?from=${range.from}&to=${range.to}`, {
+        const res = await fetch(`/api/admin/statistics/driver-revisit?from=${range.from}&to=${range.to}`, {
           cache: "no-store",
         });
         const json: ApiResponse = await res.json();

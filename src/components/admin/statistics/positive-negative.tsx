@@ -73,7 +73,7 @@ export default function PositiveNegative() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/positive-negative?from=${encodeURIComponent(p.from)}&to=${encodeURIComponent(p.to)}`
+        `/api/admin/statistics/positive-negative?from=${encodeURIComponent(p.from)}&to=${encodeURIComponent(p.to)}`
       );
       if (!res.ok) throw new Error("Failed to fetch");
       const json = (await res.json()) as ApiResponse;

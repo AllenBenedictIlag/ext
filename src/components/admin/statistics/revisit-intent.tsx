@@ -80,7 +80,7 @@ export default function RevisitIntent() {
     setLoading(true);
     try {
       // if you use a different question_key, add &qkey=your_key here
-      const res = await fetch(`/api/admin/dashboard/revisit-intent?from=${f.from}&to=${f.to}`, { cache: "no-store" });
+      const res = await fetch(`/api/admin/statistics/revisit-intent?from=${f.from}&to=${f.to}`, { cache: "no-store" });
       const json: ApiResponse = await res.json();
       setSeries(json.series);
       setCadence(json.cadence);

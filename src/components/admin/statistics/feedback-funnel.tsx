@@ -76,13 +76,13 @@ function loadSavedWindow() {
 }
 
 /* ---------- Component ---------- */
-export default function FunnelCard() {
+export default function FeedbackFunnel() {
   const [stages, setStages] = React.useState<Stage[]>(DEFAULT_STAGES);
   const [period, setPeriod] = React.useState<{ from: string; to: string } | null>(null);
 
   // Always fetch with explicit from/to to match GlobalQuickFilter exactly
   const fetchData = React.useCallback(async (from: string, to: string) => {
-    const url = `/api/admin/dashboard/conversion-funnel?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const url = `/api/admin/statistics/feedback-funnel?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j: FunnelApiResponse = await res.json();

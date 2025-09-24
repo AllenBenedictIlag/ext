@@ -129,7 +129,7 @@ export default function AnswerDistribution({
     try {
       const qs =
         from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : "";
-      const res = await fetch(`/api/admin/dashboard/answer-distribution${qs}`, {
+      const res = await fetch(`/api/admin/statistics/answer-distribution${qs}`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
