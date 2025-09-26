@@ -32,9 +32,9 @@ type FunnelApiResponse = {
 
 /* ---------- Defaults (UI stays the same; values get replaced) ---------- */
 const DEFAULT_STAGES: Stage[] = [
-  { value: 0, name: "Issued",    fill: "var(--chart-1)" },
-  { value: 0, name: "Used",      fill: "var(--chart-2)" },
-  { value: 0, name: "Submitted", fill: "var(--chart-5)" },
+  { value: 0, name: "Issued",    fill: "var(--chart-2)" },
+  { value: 0, name: "Used",      fill: "var(--chart-4)" },
+  { value: 0, name: "Submitted", fill: "var(--chart-6)" },
 ];
 
 /* ---------- Tooltip (unchanged visuals) ---------- */
@@ -89,9 +89,9 @@ export default function FeedbackFunnel() {
 
     setPeriod(j.period);
     setStages([
-      { name: "Issued",    value: j.issued,    fill: "var(--chart-1)" },
-      { name: "Used",      value: j.used,      fill: "var(--chart-2)" },
-      { name: "Submitted", value: j.submitted, fill: "var(--chart-5)" },
+      { name: "Issued",    value: j.issued,    fill: "var(--chart-2)" },
+      { name: "Used",      value: j.used,      fill: "var(--chart-4)" },
+      { name: "Submitted", value: j.submitted, fill: "var(--chart-6)" },
     ]);
   }, []);
 
@@ -125,7 +125,7 @@ export default function FeedbackFunnel() {
     <Card className="md:col-span-3 h-90 rounded-xl border shadow-sm bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Conversion Funnel</CardTitle>
+          <CardTitle>Feedback Funnel</CardTitle>
           <CardDescription>Issued → Used → Submitted</CardDescription>
         </div>
       </CardHeader>

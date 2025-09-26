@@ -178,7 +178,7 @@ export default function DriverRevisit() {
               margin={{ top: 8, right: 50, bottom: 0, left: 8 }}
               aria-label="Ranked drivers by mean difference between revisit=Yes and revisit=No"
             >
-              <CartesianGrid horizontal stroke="hsl(var(--muted) / 0.35)" />
+              {/* <CartesianGrid horizontal stroke="var(--muted)" /> */}
               <YAxis
                 type="category"
                 dataKey="key"
@@ -186,13 +186,18 @@ export default function DriverRevisit() {
                 tick={{ fontSize: 12 }}
                 tickFormatter={(v) => titleizeKey(String(v))}
               />
+              <CartesianGrid
+                stroke="var(--chart-2)"
+                strokeOpacity={0.7}
+                strokeDasharray="3 3"
+              />
               <XAxis
                 type="number"
                 domain={[-maxAbs, maxAbs]}
                 tick={{ fontSize: 12 }}
                 tickFormatter={(v) => round2(Number(v)).toString()}
               />
-              <ReferenceLine x={0} stroke="hsl(var(--muted-foreground) / 0.55)" strokeDasharray="3 3" />
+              <ReferenceLine x={0} stroke="var(--muted-foreground)" strokeDasharray="3 3" />
               <RechartsTooltip wrapperStyle={{ outline: "none" }} content={<DriverTooltip />} />
 
               <Bar dataKey="gap" name="Gap (Yes − No)" radius={[6, 6, 6, 6]} barSize={24}>

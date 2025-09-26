@@ -152,7 +152,7 @@ export default function CompletionMatrix() {
   const [answeredPairs, setAnsweredPairs] = React.useState<Array<[number, number]> | null>(null);
   const [loading, setLoading] = React.useState(true);
 
-  const CELL_PX = 18;
+  const CELL_PX = 250;
   const MARGIN = { top: 16, right: 50, bottom: 22, left:20 };
   const LIMIT = 40;
 
@@ -160,7 +160,7 @@ export default function CompletionMatrix() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/completion-matrix?from=${f.from}&to=${f.to}&limit=${LIMIT}&order=asc`,
+        `/api/superadmin/data-quality/completion-matrix?from=${f.from}&to=${f.to}&limit=${LIMIT}&order=asc`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();
@@ -243,7 +243,7 @@ export default function CompletionMatrix() {
   const empty = !loading && (!qs.length || !subs.length);
 
   return (
-    <Card className="md:col-span-5 h-120 rounded-xl border shadow-sm bg-card px-4">
+    <Card className="md:col-span-8 h-120 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Completion Matrix</CardTitle>

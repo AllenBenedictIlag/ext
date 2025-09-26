@@ -103,7 +103,7 @@ export default function SubmissionsPattern() {
   const [max, setMax] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(true);
 
-  const CELL_PX = 250;
+  const CELL_PX = 500;
   const hourTicks = React.useMemo(
     () => Array.from({ length: 24 }, (_, h) => h).filter((h) => h % 3 === 0),
     []
@@ -154,7 +154,7 @@ export default function SubmissionsPattern() {
   const empty = !loading && dataCells.every((c) => c.count === 0);
 
   return (
-    <Card className="md:col-span-5 h-120 rounded-xl border shadow-sm bg-card px-4">
+    <Card className="md:col-span-8 h-120 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Submission Patterns</CardTitle>
@@ -206,7 +206,7 @@ export default function SubmissionsPattern() {
               <RechartsTooltip
                 content={<HeatTooltip />}
                 wrapperStyle={{ outline: "none" }}
-                cursor={{ fill: "hsl(var(--muted) / 0.25)" }}
+                cursor={{ fill: "var(--muted)" }}
               />
 
               <Scatter data={dataCells} shape="square" name="Submissions" fill="var(--chart-1)">

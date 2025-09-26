@@ -582,7 +582,7 @@ function DataTable(props: {
 
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="gap-2" aria-label="Export visible rows to CSV">
+              <Button variant="default" className="gap-2" aria-label="Export visible rows to CSV">
                 <Download className="h-4 w-4" />
                 Export
               </Button>

@@ -499,7 +499,7 @@ function DataTable({
                   <TableRow
                     key={r.id}
                     tabIndex={0}
-                    className="even:bg-muted/40 hover:bg-accent/40 focus-visible:outline focus-visible:outline-2"
+                    className="even:bg-muted/40 hover:bg-accent/40 focus-visible:outline-2"
                     style={
                       highlightRows
                         ? { backgroundColor: "hsl(var(--chart-1) / 0.30)" }
@@ -585,7 +585,7 @@ function DataTable({
    Main export with data fetching
 ────────────────────────────────────────────────────────────────────────────── */
 
-export default function SurveyVersionsCard({ highlightRows = true }: Props) {
+export default function SurveyVersions({ highlightRows = true }: Props) {
   const [rows, setRows] = React.useState<Row[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -597,7 +597,7 @@ export default function SurveyVersionsCard({ highlightRows = true }: Props) {
         setLoading(true);
         setError(null);
         const res = await fetch(
-          "/api/admin/questions/survey-versions?page=1&pageSize=500&sortBy=updated_at&sortDir=desc",
+          "/api/superadmin/reviews/survey-versions?page=1&pageSize=500&sortBy=updated_at&sortDir=desc",
           { cache: "no-store" }
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

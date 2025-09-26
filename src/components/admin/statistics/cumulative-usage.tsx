@@ -135,7 +135,7 @@ export default function CumulativeUsage() {
   const empty = !loading && ((series?.length ?? 0) === 0 || (denom?.issued ?? 0) === 0);
 
   return (
-    <Card className="md:col-span-5 h-120 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-3 h-90 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Cumulative Usage (7 Days)</CardTitle>

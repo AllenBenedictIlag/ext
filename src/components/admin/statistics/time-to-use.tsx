@@ -137,15 +137,16 @@ export default function TimeToUse() {
               aria-label="Histogram of hours from receipt issue to use, grouped in 6-hour windows"
               margin={{ top: 8, right: 16, bottom: 0, left: 10 }}
             >
-                <CartesianGrid
+               
+              <RechartsTooltip content={<HistogramTooltip />} wrapperStyle={{ outline: "none" }} cursor={{ fill: "var(--muted)" }} />
+              <XAxis dataKey="label" tickMargin={8} tick={{ fontSize: 12 }} height={30}/>
+              <YAxis tick={{ fontSize: 11 }} width={46} tickLine={false} axisLine={false} />
+               <CartesianGrid
                 stroke="var(--chart-2)"
                 strokeOpacity={0.7}
                 strokeDasharray="3 3"
                 />
                 
-              <XAxis dataKey="label" tickMargin={8} tick={{ fontSize: 12 }} height={30}/>
-              <YAxis tick={{ fontSize: 11 }} width={46} tickLine={false} axisLine={false} />
-              <RechartsTooltip content={<HistogramTooltip />} wrapperStyle={{ outline: "none" }} cursor={{ fill: "hsl(var(--muted) / 0.35)" }} />
               <Bar dataKey="count" name="Used" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

@@ -122,7 +122,7 @@ export default function DeadlineEffect() {
     })) ?? [];
 
   return (
-    <Card className="md:col-span-4 h-90 rounded-xl border shadow-sm bg-card px-4">
+    <Card className="md:col-span-5 h-90 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Deadline Effect (Day 0–7)</CardTitle>

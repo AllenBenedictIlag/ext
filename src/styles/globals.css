@@ -27,7 +27,7 @@
   --border: oklch(0.9158 0 0);
   --input: oklch(1.0000 0 0);
   --ring: oklch(0.7737 0.1629 60.2762);
-  --chart-1: oklch(0.7737 0.1629 60.2762);
+ /* --chart-1: oklch(0.7737 0.1629 60.2762);
   --chart-2: oklch(0.4848 0.0564 257.9840);
   --chart-3: oklch(0.8761 0 0);
   --chart-4: oklch(0.8149 0.0790 102.3228);
@@ -36,11 +36,21 @@
   --chart-7: oklch(0.3616 0.0079 75.3053);
   --chart-8: oklch(0.8149 0.0790 102.3228);
   --chart-9: oklch(0.6142 0.1909 24.7387);
-  --chart-10: oklch(0.407 0.152 270.62); /* #141E5A - Penn Blue */
-  --chart-11: oklch(0.488 0.096 274.82); /* #3B478C - Marian Blue */
-  --chart-12: oklch(0.941 0.038 100.37); /* #F5F1D4 - Beige */
-  --chart-13: oklch(0.835 0.175 85.39);  /* #FDBE00 - Amber */
-  --chart-14: oklch(0.627 0.179 49.88);  /* #E18009 - Fulvous */
+  --chart-10: oklch(0.407 0.152 270.62); 
+  --chart-11: oklch(0.488 0.096 274.82); 
+  --chart-12: oklch(0.941 0.038 100.37); 
+  --chart-13: oklch(0.835 0.175 85.39);  
+  --chart-14: oklch(0.627 0.179 49.88);   */
+
+--chart-1: oklch(0.6814 0.2136 40.0611);
+--chart-2: oklch(0.7230 0.1897 50.5437);
+--chart-3: oklch(0.7686 0.1745 63.5581);
+--chart-4: oklch(0.8179 0.1705 77.9481);
+--chart-5: oklch(0.8691 0.1777 91.3102);
+--chart-6: oklch(0.9209 0.1921 102.1094);
+
+
+
 
   --sidebar: oklch(0.9821 0 0);
   --sidebar-foreground: oklch(0.2850 0 0);
@@ -91,7 +101,7 @@
   --border: oklch(0.2850 0 0);
   --input: oklch(0.2178 0 0);
   --ring: oklch(0.7737 0.1629 60.2762);
-  --chart-1: oklch(0.7737 0.1629 60.2762);
+  /* --chart-1: oklch(0.7737 0.1629 60.2762);
   --chart-2: oklch(0.4848 0.0564 257.9840);
   --chart-3: oklch(0.8761 0 0);
   --chart-4: oklch(0.8149 0.0790 102.3228);
@@ -100,11 +110,18 @@
   --chart-7: oklch(0.3616 0.0079 75.3053);
   --chart-8: oklch(0.8149 0.0790 102.3228);
   --chart-9: oklch(0.6142 0.1909 24.7387);
-  --chart-10: oklch(0.407 0.152 270.62); /* #141E5A - Penn Blue */
-  --chart-11: oklch(0.488 0.096 274.82); /* #3B478C - Marian Blue */
-  --chart-12: oklch(0.941 0.038 100.37); /* #F5F1D4 - Beige */
-  --chart-13: oklch(0.835 0.175 85.39);  /* #FDBE00 - Amber */
-  --chart-14: oklch(0.627 0.179 49.88);  /* #E18009 - Fulvous */
+  --chart-10: oklch(0.407 0.152 270.62); 
+  --chart-11: oklch(0.488 0.096 274.82); 
+  --chart-12: oklch(0.941 0.038 100.37); 
+  --chart-13: oklch(0.835 0.175 85.39);  
+  --chart-14: oklch(0.627 0.179 49.88);   */
+
+--chart-1: oklch(0.6814 0.2136 40.0611);
+--chart-2: oklch(0.7230 0.1897 50.5437);
+--chart-3: oklch(0.7686 0.1745 63.5581);
+--chart-4: oklch(0.8179 0.1705 77.9481);
+--chart-5: oklch(0.8691 0.1777 91.3102);
+--chart-6: oklch(0.9209 0.1921 102.1094);
 
   --sidebar: oklch(0.2178 0 0);
   --sidebar-foreground: oklch(0.9581 0 0);

@@ -1,102 +1,120 @@
 // lib/modules.ts
 // Single place for: types, icon keys, icon registry, and sections.
 
+import type { ComponentType } from "react";
 import {
-    IconChartBar,
-    IconDashboard,
-    IconSettings,
-    IconUsers,
-    IconMessageQuestion,
-    IconDatabase,
-    IconFileWord,
-    IconReport,
-    IconCalendarEvent,
-    IconLock,
-  } from "@tabler/icons-react"
-  
-  export type Role = "admin" | "superadmin"
+  IconLayoutDashboard,
+  IconMessageDots,
+  IconChartLine,
+  IconChartBar,
+  IconHelpCircle,
+  IconClipboardCheck,
+  IconCircleCheck,
+  IconReceipt2,
+  IconSettings,
+  IconShieldCheck,
+  IconListCheck,
+  IconUsers,
+  IconHistory,
+  IconReportAnalytics,
+} from "@tabler/icons-react";
 
-  // 1) Types
-  export type IconKey =
-    | "dashboard"
-    | "calendar"
-    | "chart"
-    | "users"
-    | "question"
-    | "settings"
-    | "database"
-    | "word"
-    | "report"
-  
-  export type NavItem = {
-    title: string
-    url: string
-    icon?: IconKey
-  }
-  
-  export type NavSection = {
-    label: string
-    items: NavItem[]
-  }
-  
-  // 2) Icon registry (string key -> actual component)
-  export const ICONS: Record<IconKey, React.ComponentType<any>> = {
-    dashboard: IconDashboard,
-    calendar: IconCalendarEvent,
-    chart: IconChartBar,
-    users: IconUsers,
-    question: IconMessageQuestion,
-    settings: IconSettings,
-    database: IconDatabase,
-    word: IconFileWord,
-    report: IconReport,
-  }
-  
-  // 3) Your grouped navigation data
-  export const SECTIONS_ADMIN: NavSection[] = [
-    {
-      label: "Admin",
-      items: [
-        { title: "Dashboard",  url: "/admin/dashboard",  icon: "dashboard" },
-        { title: "Comments",  url: "/admin/comments",  icon: "calendar" },
-        { title: "Analytics",  url: "/admin/analytics",  icon: "chart" },
-      ],
-    },
-    {
-      label: "Management",
-      items: [
-        { title: "Questions",  url: "/admin/questions",  icon: "question" },
-        { title: "Employees",  url: "/admin/employees",  icon: "users" },
-      ],
-    },
-    {
-      label: "Others",
-      items: [
-        { title: "Settings",   url: "/admin/settings",   icon: "settings" },
-      ],
-    },
-  ]
+export type Role = "admin" | "superadmin";
 
-  // --- Super Admin-only sections
+// 1) Types
+export type IconKey =
+  | "dashboard"
+  | "comments"
+  | "analytics"
+  | "statistics"
+  | "questions"
+  | "submissions"
+  | "answers"
+  | "receipts"
+  | "settings"
+  | "governance"
+  | "reviews"
+  | "users"
+  | "audit"
+  | "datahealth";
+
+export type NavItem = {
+  title: string;
+  url: string;
+  icon?: IconKey;
+};
+
+export type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
+// 2) Icon registry (string key -> actual component)
+export const ICONS: Record<IconKey, ComponentType<any>> = {
+  dashboard: IconLayoutDashboard,
+  comments: IconMessageDots,
+  analytics: IconChartLine,
+  statistics: IconChartBar,
+  questions: IconHelpCircle,
+  submissions: IconClipboardCheck,
+  answers: IconCircleCheck,
+  receipts: IconReceipt2,
+  settings: IconSettings,
+  governance: IconShieldCheck,
+  reviews: IconListCheck,
+  users: IconUsers,
+  audit: IconHistory,
+  datahealth: IconReportAnalytics,
+};
+
+// 3) Grouped navigation data
+export const SECTIONS_ADMIN: NavSection[] = [
+  {
+    label: "Operate",
+    items: [
+      { title: "Dashboard", url: "/admin/dashboard", icon: "dashboard" },
+      { title: "Comments", url: "/admin/comments", icon: "comments" },
+      { title: "Statistics", url: "/admin/statistics", icon: "statistics" },
+      { title: "Questions", url: "/admin/questions", icon: "questions" },
+    ],
+  },
+  {
+    label: "Drilldowns",
+    items: [
+      { title: "Submissions", url: "/admin/submissions", icon: "submissions" },
+      { title: "Answers", url: "/admin/answers", icon: "answers" },
+      { title: "Receipts", url: "/admin/receipts", icon: "receipts" },
+    ],
+  },
+  {
+    label: "Others",
+    items: [{ title: "Settings", url: "/admin/settings", icon: "settings" }],
+  },
+];
+
+// --- Super Admin-only sections
 export const SECTIONS_SUPERADMIN: NavSection[] = [
-    {
-      label: "Super Admin",
-      items: [
-        { title: "Dashboard",  url: "/superadmin/dashboard", icon: "dashboard" },
-        { title: "Admins",           url: "/superadmin/admins",         icon: "users" },
-      ],
-    },
-    {
-      label: "Controls",
-      items: [
-        { title: "Global Settings",  url: "/superadmin/settings",        icon: "database" },
-        { title: "Form Templates",   url: "/superadmin/template",       icon: "word" },
-      ],
-    },
-    {
-      label: "Maintenance",
-      items: [
-        { title: "Backup & Restore", url: "/superadmin/backups",        icon: "report" },
-      ],
-    },
-  ]
+  {
+    label: "Govern",
+    items: [
+      { title: "Governance", url: "/superadmin/governance", icon: "governance" },
+      { title: "Reviews", url: "/superadmin/reviews", icon: "reviews" },
+      { title: "Users", url: "/superadmin/users", icon: "users" },
+      { title: "Audit Log", url: "/superadmin/audit-log", icon: "audit" },
+    ],
+  },
+  {
+    label: "Data Health",
+    items: [
+      {
+        title: "Data Quality & Health",
+        url: "/superadmin/data-quality",
+        icon: "datahealth",
+      },
+    ],
+  },
+  {
+    label: "System",
+    items: [{ title: "Settings", url: "/superadmin/settings", icon: "settings" }],
+  },
+];

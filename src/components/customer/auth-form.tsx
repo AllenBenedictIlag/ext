@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/ui/theme-button";
 
 export default function FeedbackAuthForm() {
   return (
-    <main className="relative min-h-dvh bg-sidebar text-foreground">
+    <main className="relative min-h-dvh bg-background text-foreground">
       <div className="absolute right-3 top-3 z-50">
         <ModeToggle />
       </div>

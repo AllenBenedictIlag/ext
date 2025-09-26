@@ -36,12 +36,12 @@ const DEFAULT_LABELS: Record<string, string> = {
   No: "No",
 };
 const DEFAULT_COLORS: Record<string, string> = {
-  "1": "var(--destructive)",  // worst
-  "2": "var(--chart-4)",
+  "1": "var(--chart-6)",  // worst
+  "2": "var(--chart-5)",
   "3": "var(--chart-2)",
   "4": "var(--chart-1)",      // best
-  No: "var(--destructive)",
-  Yes: "var(--primary)",
+  No: "var(--chart-6)",
+  Yes: "var(--chart-1)",
 };
 
 /* ---------- Small utils (URL/localStorage) ---------- */
@@ -111,10 +111,14 @@ function DistTooltip({ active, payload }: { active?: boolean; payload?: any[] })
 /* ---------- Component ---------- */
 export default function AnswerDistribution({
   cardHeightClass = "h-120",
+  height,                // NEW
+  cardClassName,         // NEW
   segmentLabels = DEFAULT_LABELS,
   segmentColors = DEFAULT_COLORS,
 }: {
   cardHeightClass?: string;
+  height?: string;       // NEW: e.g., "h-90"
+  cardClassName?: string; // NEW: e.g., "md:col-span-6"
   segmentLabels?: Record<string, string>;
   segmentColors?: Record<string, string>;
 }) {
@@ -129,7 +133,7 @@ export default function AnswerDistribution({
     try {
       const qs =
         from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : "";
-      const res = await fetch(`/api/admin/statistics/answer-distribution${qs}`, {
+      const res = await fetch(`/api/admin/answers/answer-distribution${qs}`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -176,8 +180,11 @@ export default function AnswerDistribution({
     });
   }, [rows, keys]);
 
+  // Prefer `height` when provided; otherwise use `cardHeightClass`
+  const resolvedHeight = height ?? cardHeightClass;
+
   return (
-    <Card className={`md:col-span-5 ${cardHeightClass} rounded-xl border shadow-sm bg-card`}>
+    <Card className={`md:col-span-5 ${resolvedHeight} rounded-xl border shadow-sm bg-si ${cardClassName ?? ""}`}>
       <CardHeader className="flex flex-row items-center justify-between ">
         <div>
           <CardTitle>Answer Distribution</CardTitle>
@@ -208,7 +215,22 @@ export default function AnswerDistribution({
               tickFormatter={(v) => `${v}%`}
             />
             <RechartsTooltip content={<DistTooltip />} wrapperStyle={{ outline: "none" }} />
-            <Legend wrapperStyle={{ fontSize: 12 }} iconSize={10} height={24} />
+            <Legend
+              iconSize={10}
+              height={24}
+              formatter={(value) => (
+                <span
+                  style={{
+                    fontSize: "12px",        // tweak size
+                    fontWeight: 400,         // or "bold"
+                    color: "var(--card-foreground)", // use your theme variable
+                    fontFamily: "Inter, sans-serif", // or any font
+                  }}
+                >
+                  {value}
+                </span>
+              )}
+            />
 
             {keys.map((k) => (
               <Bar

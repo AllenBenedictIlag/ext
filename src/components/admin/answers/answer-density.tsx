@@ -66,7 +66,13 @@ function DensityTooltip({ active, payload, label }: any) {
 }
 
 /* ---------- Component ---------- */
-export default function AnswerDensity() {
+export default function AnswerDensity({
+  height = "h-120",          // NEW
+  cardClassName,             // NEW
+}: {
+  height?: string;           // NEW: e.g., "h-90"
+  cardClassName?: string;    // NEW: e.g., "md:col-span-6"
+}) {
   const [range, setRange] = React.useState(getInitialRange);
   const [data, setData] = React.useState<ApiResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -75,7 +81,7 @@ export default function AnswerDensity() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/answer-density?from=${f.from}&to=${f.to}`,
+        `/api/admin/answers/answer-density?from=${f.from}&to=${f.to}`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();
@@ -124,7 +130,7 @@ export default function AnswerDensity() {
   const expected = data?.expected ?? null;
 
   return (
-    <Card className="md:col-span-4 h-120 rounded-xl border shadow-sm bg-card">
+    <Card className={`md:col-span-4 ${height} rounded-xl border shadow-sm bg-card ${cardClassName ?? ""}`}>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Answer Density</CardTitle>
@@ -144,7 +150,7 @@ export default function AnswerDensity() {
               aria-label="Histogram of answers per submission"
               margin={{ top: 12, right: 24, bottom: 10, left: 14 }}
             >
-              <CartesianGrid stroke="hsl(var(--muted) / 0.35)" />
+              <CartesianGrid stroke="var(--muted)" />
               <XAxis
                 type="number"
                 dataKey="answers"
@@ -207,15 +213,6 @@ export default function AnswerDensity() {
       <CardFooter className="px-6 text-xs text-muted-foreground">
         <div className="flex flex-col gap-1">
           <p>{footer}</p>
-          {data?.questions && (
-            <p>
-              Required <span className="font-medium">{data.questions.required}</span> • Optional{" "}
-              <span className="font-medium">{data.questions.optional}</span>
-              {expected != null && (
-                <> • Expected ≈ <span className="font-medium">{expected.toFixed(1)}</span></>
-              )}
-            </p>
-          )}
         </div>
       </CardFooter>
     </Card>

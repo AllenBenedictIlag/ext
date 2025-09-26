@@ -79,7 +79,7 @@ function BalanceTooltip({ active, payload, label }: any) {
 
 /* ---------- Colors (your tokens) ---------- */
 const COLOR_L1 = "var(--destructive)";
-const COLOR_L2 = "var(--chart-14)";
+const COLOR_L2 = "var(--chart-2)";
 const COLOR_L3 = "var(--chart-4)";
 const COLOR_L4 = "var(--chart-1)";
 const COLOR_YES = "var(--chart-4)";
@@ -96,7 +96,7 @@ export default function OptionBalance() {
   async function fetchData(f: { from: string; to: string }) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/dashboard/option-balance?from=${f.from}&to=${f.to}`, { cache: "no-store" });
+      const res = await fetch(`/api/superadmin/data-quality/option-balance?from=${f.from}&to=${f.to}`, { cache: "no-store" });
       const json: ApiResponse = await res.json();
       setData(json);
     } catch {

@@ -199,7 +199,7 @@ export function CustomerAuthCard() {
       </Dialog>
 
       {/* CARD */}
-      <Card className="mx-auto w-full max-w-sm bg-card shadow-sm">
+      <Card className="mx-auto w-full max-w-sm bg-card shadow-2xl px-4">
         <CardHeader className="space-y-1 text-center">
           <Image
             src="/images/coffee-black.png"

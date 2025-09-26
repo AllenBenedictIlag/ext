@@ -153,7 +153,7 @@ export default function CompositeSatisfaction() {
     !loading && (all.length === 0 || data.length === 0);
 
   return (
-    <Card className="md:col-span-8 h-90 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-4 h-90 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Composite Satisfaction (1–4)</CardTitle>

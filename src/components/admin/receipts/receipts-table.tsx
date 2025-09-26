@@ -1,8 +1,17 @@
-// src\components\admin\dashboard\users-table.tsx
+// src/components/admin/dashboard/receipts-table.tsx
 "use client";
 
+/**
+ * Receipts Table — wired to a dedicated API (no GlobalQuickFilter, no URL/localStorage).
+ * - Production-ready React (Next.js App Router, TypeScript)
+ * - shadcn/ui + Tailwind
+ * - Sticky header, scrollable body (max-h ~600px), zebra rows, hover highlight
+ * - Client controls: search, page size (10/25/50/100), column visibility, Export CSV (with AlertDialog)
+ * - Client sorting & pagination (can be swapped to server later using the same API params)
+ * - Row accent via `highlightRows` prop (default true)
+ */
+
 import * as React from "react";
-import type { ReactNode } from "react";
 import {
   Card,
   CardHeader,
@@ -65,25 +74,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
-/* =============================================================================
-   Row + columns
-   ========================================================================== */
+/* =========================================================================
+   Types
+   ========================================================================= */
 
+export type Status = "USED" | "EXPIRED_UNUSED" | "NOT_USED";
+
+/** Row shape returned by the API and rendered by the table */
 export type Row = {
-  admin_id: number;
-  name: string;
-  email: string;
-  role: "ADMIN" | "SUPER_ADMIN";
-  status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
-  created_at: string;
-  updated_at: string;
+  receipt_number: string;
+  issued_at: string;      // ISO
+  expires_at: string;     // ISO
+  used_at: string | null; // ISO or null
+  status: Status;
+  days_to_use: number | null;
+  submission_id: number | null;
+  age_days: number;
 };
 
 type ColumnDef<T> = {
   id: keyof T & string;
   header: string;
   accessor: (row: T) => unknown;
-  formatter?: (value: unknown, row: T) => ReactNode;
+  formatter?: (value: unknown, row: T) => React.ReactNode;
   width?: string;
   sortable?: boolean;
   visible?: boolean;
@@ -99,12 +112,13 @@ type DataTableProps<T extends Record<string, unknown>> = {
   defaultSort?: SortState<T>;
   highlightRows?: boolean;
   searchKeys?: (keyof T & string)[];
-  getRowKey?: (row: T, absoluteIndex: number) => React.Key;
+  /** Provide a stable key generator to avoid relying on unknown fields inside generics */
+  rowKey?: (row: T, index: number) => string | number;
 };
 
-/* =============================================================================
+/* =========================================================================
    Helpers
-   ========================================================================== */
+   ========================================================================= */
 
 const formatDatePH = (iso: string | null): string => {
   if (!iso) return "—";
@@ -123,230 +137,144 @@ const formatDatePH = (iso: string | null): string => {
   }
 };
 
-const truncate = (text: string, max = 24): string =>
+const truncate = (text: string, max = 22): string =>
   text.length > max ? text.slice(0, max - 1) + "…" : text;
 
-function getCell<T extends Record<string, unknown>, K extends keyof T & string>(
-  cols: ColumnDef<T>[],
-  row: T,
-  id: K
-): unknown {
-  const col = cols.find((c) => c.id === id);
-  return col ? col.accessor(row) : undefined; // fixed
-}
+/* =========================================================================
+   UI atoms
+   ========================================================================= */
 
 function EllipsizedWithTooltip({
   text,
   className,
-  title,
 }: {
   text: string;
   className?: string;
-  title?: string;
 }) {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={cn("block truncate", className)} title={title ?? text}>
-            {truncate(text)}
-          </span>
+          <span className={cn("block truncate", className)}>{truncate(text, 24)}</span>
         </TooltipTrigger>
         <TooltipContent side="top" align="start">
-          <p className="max-w-[460px] break-words">{text}</p>
+          <p className="max-w-[420px] break-words">{text}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 }
 
-/* =============================================================================
+function StatusBadge({ status }: { status: Status }) {
+  if (status === "USED") return <Badge className="px-2">USED</Badge>;
+  if (status === "EXPIRED_UNUSED")
+    return (
+      <Badge variant="destructive" className="px-2">
+        EXPIRED
+      </Badge>
+    );
+  return (
+    <Badge variant="secondary" className="px-2">
+      NOT USED
+    </Badge>
+  );
+}
+
+/* =========================================================================
    Columns
-   ========================================================================== */
+   ========================================================================= */
 
 const COLUMNS: ColumnDef<Row>[] = [
   {
-    id: "admin_id",
-    header: "Admin ID",
-    accessor: (r) => r.admin_id,
-    width: "120px",
+    id: "receipt_number",
+    header: "Receipt #",
+    accessor: (r) => r.receipt_number,
+    formatter: (v) => (
+      <EllipsizedWithTooltip text={String(v)} className="max-w-[180px]" />
+    ),
+    width: "200px",
     sortable: true,
     visible: true,
-    toggleable: false,
-    align: "left",
   },
   {
-    id: "name",
-    header: "Name",
-    accessor: (r) => r.name,
+    id: "issued_at",
+    header: "Issued (PH)",
+    accessor: (r) => r.issued_at,
     formatter: (v) => (
-      <EllipsizedWithTooltip text={String(v)} className="max-w-[220px]" />
+      <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
     ),
-    width: "240px",
+    width: "190px",
     sortable: true,
     visible: true,
-    toggleable: false,
   },
   {
-    id: "email",
-    header: "Email",
-    accessor: (r) => r.email,
+    id: "expires_at",
+    header: "Expires (PH)",
+    accessor: (r) => r.expires_at,
     formatter: (v) => (
-      <EllipsizedWithTooltip text={String(v)} className="max-w-[260px]" />
+      <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
     ),
-    width: "280px",
+    width: "190px",
     sortable: true,
     visible: true,
     toggleable: true,
   },
   {
-    id: "role",
-    header: "Role",
-    accessor: (r) => r.role,
-    formatter: (v) => {
-      const role = String(v) as Row["role"];
-      const isSuper = role === "SUPER_ADMIN";
-      return (
-        <Badge
-          variant={isSuper ? "default" : "secondary"}
-          className={cn(
-            "px-2",
-            isSuper && "uppercase tracking-wide",
-            !isSuper && "bg-muted text-foreground"
-          )}
-        >
-          {isSuper ? "SUPER ADMIN" : "Admin"}
-        </Badge>
-      );
-    },
-    width: "150px",
+    id: "used_at",
+    header: "Used At (PH)",
+    accessor: (r) => r.used_at,
+    formatter: (v) => (
+      <span className="whitespace-nowrap">{v ? formatDatePH(String(v)) : "—"}</span>
+    ),
+    width: "190px",
     sortable: true,
     visible: true,
-    toggleable: true,
-    align: "center",
   },
   {
     id: "status",
     header: "Status",
     accessor: (r) => r.status,
-    formatter: (v) => {
-      const s = String(v) as Row["status"];
-      const cls =
-        s === "ACTIVE"
-          ? "border-green-600 text-green-700 dark:text-green-300"
-          : s === "SUSPENDED"
-          ? "border-destructive text-destructive"
-          : "text-muted-foreground border-muted-foreground";
-      const label =
-        s === "ACTIVE" ? "Active" : s === "SUSPENDED" ? "Suspended" : "Inactive";
-      return (
-        <Badge variant="outline" className={cn("px-2", cls)}>
-          {label}
-        </Badge>
-      );
-    },
-    width: "140px",
+    formatter: (v) => <StatusBadge status={String(v) as Status} />,
+    width: "130px",
     sortable: true,
     visible: true,
-    toggleable: true,
     align: "center",
   },
   {
-    id: "created_at",
-    header: "Created",
-    accessor: (r) => r.created_at,
-    formatter: (v) => (
-      <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
-    ),
-    width: "200px",
+    id: "days_to_use",
+    header: "Days to Use",
+    accessor: (r) => r.days_to_use ?? "",
+    width: "130px",
     sortable: true,
     visible: true,
     toggleable: true,
+    align: "right",
   },
   {
-    id: "updated_at",
-    header: "Updated",
-    accessor: (r) => r.updated_at,
-    formatter: (v) => (
-      <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
-    ),
-    width: "200px",
+    id: "submission_id",
+    header: "Submission ID",
+    accessor: (r) => r.submission_id ?? "—",
+    width: "160px",
     sortable: true,
     visible: true,
-    toggleable: false,
+    toggleable: true,
+    align: "right",
+  },
+  {
+    id: "age_days",
+    header: "Age (days)",
+    accessor: (r) => r.age_days,
+    width: "120px",
+    sortable: true,
+    visible: true,
+    toggleable: true,
+    align: "right",
   },
 ];
 
-/* =============================================================================
-   Remote fetch wrapper (no URL/localStorage; no events)
-   ========================================================================== */
-
-type ApiResponse = {
-  data: Row[];
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-};
-
-function UsersRemoteData({
-  children,
-}: {
-  children: (rows: Row[], loading: boolean, error: boolean) => React.ReactNode;
-}) {
-  const [rows, setRows] = React.useState<Row[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(false);
-
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(false);
-        const res = await fetch(
-          "/api/admin/dashboard/users-table?limit=500&sort=updated_at&dir=desc",
-          { method: "GET", headers: { accept: "application/json" }, cache: "no-store" }
-        );
-        if (!res.ok) throw new Error(String(res.status));
-        const json: ApiResponse = await res.json();
-        if (!alive) return;
-        setRows(Array.isArray(json.data) ? json.data : []);
-      } catch {
-        if (alive) setError(true);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  return <>{children(rows, loading, error)}</>;
-}
-
-function SkeletonRows() {
-  return (
-    <div className="rounded-md border overflow-hidden">
-      <div className="max-h-[600px] overflow-auto">
-        <div className="p-4 space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="grid grid-cols-7 gap-3">
-              {Array.from({ length: 7 }).map((__, j) => (
-                <div key={j} className="h-4 bg-muted rounded animate-pulse" />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =============================================================================
-   DataTable
-   ========================================================================== */
+/* =========================================================================
+   DataTable (search, sort, column visibility, pagination, export CSV w/ confirm)
+   ========================================================================= */
 
 function DataTable<T extends Record<string, unknown>>({
   data,
@@ -354,7 +282,7 @@ function DataTable<T extends Record<string, unknown>>({
   defaultSort,
   highlightRows = true,
   searchKeys,
-  getRowKey,
+  rowKey,
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState<string>("");
   const [pageSize, setPageSize] = React.useState<number>(10);
@@ -432,8 +360,7 @@ function DataTable<T extends Record<string, unknown>>({
     });
   };
 
-  const toggleCol = (id: string) =>
-    setVisibility((v) => ({ ...v, [id]: !v[id] }));
+  const toggleCol = (id: string) => setVisibility((v) => ({ ...v, [id]: !v[id] }));
 
   const exportCSV = () => {
     const headers = visibleColumns.map((c) => c.header);
@@ -466,7 +393,7 @@ function DataTable<T extends Record<string, unknown>>({
     const a = document.createElement("a");
     const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "");
     a.href = url;
-    a.download = `users-visible-${ts}.csv`;
+    a.download = `receipts-visible-${ts}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -475,11 +402,11 @@ function DataTable<T extends Record<string, unknown>>({
     <div className="space-y-3">
       {/* Controls */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-[360px]">
+        <div className="relative w-full sm:max-w-[320px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            aria-label="Search users"
-            placeholder="Search name, email, role, status…"
+            aria-label="Search receipts"
+            placeholder="Search receipt # or status…"
             value={query}
             onChange={(e) => {
               setPage(1);
@@ -505,7 +432,7 @@ function DataTable<T extends Record<string, unknown>>({
                   key={c.id}
                   className="capitalize"
                   checked={!!visibility[c.id]}
-                  onCheckedChange={() => c.toggleable !== false && toggleCol(c.id)}
+                  onCheckedChange={() => toggleCol(c.id)}
                   disabled={c.toggleable === false}
                 >
                   {c.header}
@@ -522,7 +449,7 @@ function DataTable<T extends Record<string, unknown>>({
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-[110px]" aria-label="Rows per page">
+            <SelectTrigger className="w-[120px]" aria-label="Rows per page">
               <SelectValue placeholder="Page size" />
             </SelectTrigger>
             <SelectContent>
@@ -534,7 +461,7 @@ function DataTable<T extends Record<string, unknown>>({
             </SelectContent>
           </Select>
 
-          {/* Confirm before export */}
+          {/* Export CSV with confirmation */}
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <AlertDialogTrigger asChild>
               <Button
@@ -551,7 +478,7 @@ function DataTable<T extends Record<string, unknown>>({
               <AlertDialogHeader>
                 <AlertDialogTitle>Export visible rows?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will export the currently visible (filtered &amp; sorted) rows on this page to CSV.
+                  This will export the currently visible (filtered &amp; sorted) rows to CSV.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -597,59 +524,53 @@ function DataTable<T extends Record<string, unknown>>({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageRows.map((row, i) => {
-                const absoluteIndex = start + i;
-                const key: React.Key = getRowKey
-                  ? getRowKey(row, absoluteIndex)
-                  : String(absoluteIndex);
-                return (
-                  <TableRow
-                    key={key}
-                    className={cn(
-                      "hover:bg-accent/30 focus-within:bg-accent/30",
-                      "odd:bg-muted/30 even:bg-card",
-                      highlightRows && "bg-[hsl(var(--chart-1)/0.30)]/10"
-                    )}
-                  >
-                    {visibleColumns.map((c) => {
-                      const raw = c.accessor(row);
-                      const content = c.formatter ? (
-                        c.formatter(raw, row)
-                      ) : (
-                        <span
-                          className={cn(
-                            "block truncate",
-                            c.align === "right" && "text-right",
-                            c.align === "center" && "text-center"
-                          )}
-                          title={raw == null ? "" : String(raw)}
-                        >
-                          {String(raw ?? "")}
-                        </span>
-                      );
-                      return (
-                        <TableCell
-                          key={c.id}
-                          className={cn(
-                            "align-middle",
-                            c.align === "right" && "text-right",
-                            c.align === "center" && "text-center"
-                          )}
-                          style={c.width ? { width: c.width } : undefined}
-                        >
-                          {content}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
+              {pageRows.map((row, i) => (
+                <TableRow
+                  key={rowKey ? rowKey(row, start + i) : `${start + i}`}
+                  className={cn(
+                    "hover:bg-accent/30 focus-within:bg-accent/30",
+                    "odd:bg-muted/30 even:bg-card",
+                    highlightRows && "bg-[hsl(var(--chart-1)/0.30)]/10"
+                  )}
+                >
+                  {visibleColumns.map((c) => {
+                    const raw = c.accessor(row);
+                    const content = c.formatter ? (
+                      c.formatter(raw, row)
+                    ) : (
+                      <span
+                        className={cn(
+                          "block truncate",
+                          c.align === "right" && "text-right",
+                          c.align === "center" && "text-center"
+                        )}
+                        title={raw == null ? "" : String(raw)}
+                      >
+                        {String(raw ?? "")}
+                      </span>
+                    );
+                    return (
+                      <TableCell
+                        key={c.id}
+                        className={cn(
+                          "align-middle",
+                          c.align === "right" && "text-right",
+                          c.align === "center" && "text-center"
+                        )}
+                        style={c.width ? { width: c.width } : undefined}
+                      >
+                        {content}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
       </div>
 
-      {/* Pagination footer */}
+      {/* Pagination */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div>
           Showing{" "}
@@ -705,47 +626,144 @@ function DataTable<T extends Record<string, unknown>>({
   );
 }
 
-/* =============================================================================
-   Exported card
-   ========================================================================== */
+/* =========================================================================
+   Utility
+   ========================================================================= */
 
-export type UsersTableProps = {
+function getCell<T extends Record<string, unknown>, K extends keyof T & string>(
+  cols: ColumnDef<T>[],
+  row: T,
+  id: K
+): unknown {
+  const col = cols.find((c) => c.id === id);
+  return col ? col.accessor(row) : undefined;
+}
+
+/* =========================================================================
+   Remote fetch wrapper (no URL/localStorage, no events)
+   ========================================================================= */
+
+type ApiResponse = {
+  data: Row[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+    sort: string;
+    dir: "asc" | "desc";
+    q: string | null;
+  };
+};
+
+function ReceiptsRemoteData({
+  children,
+}: {
+  children: (rows: Row[], loading: boolean, error: boolean) => React.ReactNode;
+}) {
+  const [rows, setRows] = React.useState<Row[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        const res = await fetch(
+          "/api/admin/receipts/receipts-table?limit=1000&sort=issued_at&dir=desc",
+          { method: "GET", cache: "no-store" }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as ApiResponse;
+        if (!alive) return;
+        setRows(Array.isArray(json.data) ? json.data : []);
+      } catch {
+        if (alive) setError(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return <>{children(rows, loading, error)}</>;
+}
+
+/* =========================================================================
+   Skeleton (loading)
+   ========================================================================= */
+
+function SkeletonTable() {
+  return (
+    <div className="rounded-md border overflow-hidden">
+      <div className="max-h-[600px] overflow-auto">
+        <div className="p-4 space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-8 gap-3">
+              {Array.from({ length: 8 }).map((__, j) => (
+                <div key={j} className="h-4 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   Card wrapper (final export)
+   ========================================================================= */
+
+export type ReceiptsTableCardProps = {
   highlightRows?: boolean;
 };
 
-export default function UsersTable({ highlightRows = true }: UsersTableProps) {
+export default function ReceiptsTable({
+  highlightRows = true,
+}: ReceiptsTableCardProps) {
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card shadow-sm px-4">
       <CardHeader>
-        <CardTitle className="tracking-normal">Users &amp; Roles Table</CardTitle>
+        <CardTitle className="tracking-normal">Receipts Table</CardTitle>
         <CardDescription>
-          Controls who can see, edit, or approve surveys and data. Use this list to
-          verify who has <span className="font-medium">Super Admin</span> privileges,
-          audit approvers, and keep governance tight.
+          Receipts are the root of your feedback system. Use this to reconcile
+          totals: issued, used, and expired unused. If response rates look off,
+          check how many receipts were issued and how many expired without use.
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">
-        <UsersRemoteData>
+        <ReceiptsRemoteData>
           {(rows, loading, error) => {
-            if (loading) return <SkeletonRows />;
+            if (loading) return <SkeletonTable />;
             if (error)
               return (
                 <div className="text-sm text-destructive">
-                  Failed to load users. Please retry.
+                  Failed to load receipts. Please retry.
                 </div>
               );
+            if (rows.length === 0)
+              return (
+                <div className="text-sm text-muted-foreground">
+                  — No receipts yet —
+                </div>
+              );
+
             return (
               <DataTable<Row>
                 data={rows}
                 columns={COLUMNS}
-                defaultSort={{ id: "updated_at", dir: "desc" }}
+                defaultSort={{ id: "issued_at", dir: "desc" }}
                 highlightRows={highlightRows}
-                searchKeys={["name", "email", "role", "status"]}
-                getRowKey={(r) => r.admin_id}
+                searchKeys={["receipt_number", "status"]}
+                rowKey={(r) => r.receipt_number}
               />
             );
           }}
-        </UsersRemoteData>
+        </ReceiptsRemoteData>
       </CardContent>
     </Card>
   );

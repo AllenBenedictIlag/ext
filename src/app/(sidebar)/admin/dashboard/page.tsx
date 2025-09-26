@@ -7,9 +7,9 @@ import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
 import { SectionCards } from "@/components/admin/dashboard/kpi-tiles";
 import FunnelCard from "@/components/admin/statistics/feedback-funnel";
 import TrendCard from "@/components/admin/statistics/monthly-receipts";
-import AnswerDistribution from "@/components/admin/statistics/answer-distribution";
+import AnswerDistribution from "@/components/admin/answers/answer-distribution";
 import PositiveNegative from "@/components/admin/statistics/positive-negative";
-import MiniTrendPerQuestion from "@/components/admin/statistics/positive-response-trend";
+import MiniTrendPerQuestion from "@/components/admin/statistics/mini-trend";
 import RevisitIntent from "@/components/admin/statistics/revisit-intent";
 import CompositeSatisfaction from "@/components/admin/statistics/composite-satisfaction";
 import DriverRevisit from "@/components/admin/statistics/driver-revisit";
@@ -42,40 +42,6 @@ export default function DashboardPage() {
         <TrendCard/>
         <FunnelCard />
       </div>
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <PositiveNegative/>
-        <AnswerDistribution/>
-      </div>
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <MiniTrendPerQuestion />
-      </div>
-
-      
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <CompositeSatisfaction/>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <RevisitIntent/>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <DriverRevisit/>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <TimeToUse/>
-        <CumulativeUsage/>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <SubmissionsPattern/>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-        <DeadlineEffect/>
-      </div>
-
   
     </div>
   );
