@@ -177,7 +177,21 @@ export default function PositiveNegative() {
             <RechartsTooltip content={<TooltipContent />} wrapperStyle={{ outline: "none" }} />
 
             {/* Smaller legend text + icons so it won’t push the chart */}
-            <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+            <Legend
+                          iconSize={10}
+                          height={24}
+                          formatter={(value) => (
+                            <span
+                              style={{
+                                fontSize: "12px",        // tweak size
+                                fontWeight: 400,         // or "bold"
+                                color: "var(--card-foreground)", // use your theme variable
+                              }}
+                            >
+                              {value}
+                            </span>
+                          )}
+              />
 
             {/* INNER RING — use percent radii so it scales with container */}
             <Pie

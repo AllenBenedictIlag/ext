@@ -185,9 +185,9 @@ export default function CommentVolume() {
                 type="monotone"
                 dataKey="count"
                 name="Comments"
-                stroke="var(--chart-1)"
+                stroke="var(--chart-5)"
                 strokeWidth={2}
-                dot={{ r: 3, stroke: "var(--chart-11)", fill: "var(--chart-11)" }}
+                dot={{ r: 3, stroke: "var(--chart-1)", fill: "var(--chart-1)" }}
                 activeDot={{ r: 5 }}
                 isAnimationActive
               />

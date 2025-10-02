@@ -224,7 +224,6 @@ export default function AnswerDistribution({
                     fontSize: "12px",        // tweak size
                     fontWeight: 400,         // or "bold"
                     color: "var(--card-foreground)", // use your theme variable
-                    fontFamily: "Inter, sans-serif", // or any font
                   }}
                 >
                   {value}

@@ -422,7 +422,7 @@ function DataTable<T extends Record<string, unknown>>({
     <div className="space-y-3">
       {/* Controls */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-[360px]">
+        <div className="relative w-full">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             aria-label="Search queue"
@@ -510,7 +510,7 @@ function DataTable<T extends Record<string, unknown>>({
 
       {/* Table */}
       <div className="rounded-md border overflow-hidden">
-        <div className="max-h-[600px] overflow-auto">
+        <div className="overflow-auto">
           <Table className="table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
@@ -678,7 +678,7 @@ function ChangeTypeBadge({ t }: { t: ChangeType }) {
 function DiffTable({ diffs }: { diffs: DiffRow[] }) {
   return (
     <div className="rounded-md border overflow-hidden">
-      <div className="max-h-[620px] overflow-auto">
+      <div className="overflow-auto">
         <Table className="table-auto min-w-[980px]">
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow>
@@ -707,7 +707,7 @@ function DiffTable({ diffs }: { diffs: DiffRow[] }) {
                   <div className="space-y-1">
                     <EllipsizedWithTooltip
                       text={d.before}
-                      className="max-w-[520px] font-mono text-xs leading-relaxed"
+                      className=" font-mono text-xs leading-relaxed"
                       side="bottom"
                     />
                     <div className="text-xs text-muted-foreground hidden md:block">
@@ -719,7 +719,7 @@ function DiffTable({ diffs }: { diffs: DiffRow[] }) {
                   <div className="space-y-1">
                     <EllipsizedWithTooltip
                       text={d.after}
-                      className="max-w-[520px] font-mono text-xs leading-relaxed"
+                      className="font-mono text-xs leading-relaxed"
                       side="bottom"
                     />
                     <div className="text-xs text-muted-foreground hidden md:block">
@@ -1027,8 +1027,8 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
         }}
       >
         <DialogContent className="max-w-6xl w-[98vw] max-h-[88vh] p-0 overflow-hidden flex flex-col">
-          <DialogHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b px-6 py-4">
-            <DialogTitle className="text-base sm:text-lg">
+          <DialogHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b px-4 py-4">
+            <DialogTitle className="text-base sm:text-lg">  
               Compare Draft vs Published
             </DialogTitle>
             <DialogDescription className="text-sm">
@@ -1063,9 +1063,6 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
           </div>
 
           <div className="border-t px-6 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-muted-foreground">
-              When published, freeze <code>questions</code> &amp; <code>question_options</code> (server guard).
-            </div>
             <div className="flex items-center gap-2">
               {/* Reject with note */}
               <RejectWithNoteButton onConfirm={(note) => rejectToDraft(note)} />
@@ -1109,7 +1106,7 @@ function RejectWithNoteButton({
         <CircleSlash2 className="mr-2 h-4 w-4" />
         Reject with note
       </Button>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Reject with note</DialogTitle>
           <DialogDescription>
@@ -1176,7 +1173,7 @@ function ScheduleButton({
         <Calendar className="mr-2 h-4 w-4" />
         Approve → Schedule
       </Button>
-      <DialogContent className="max-w-4xl">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Schedule Publish</DialogTitle>
           <DialogDescription>

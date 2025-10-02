@@ -186,6 +186,7 @@ export function SigninForm({
                   <div className="grid gap-2">
                     <Label htmlFor="first_name">First name</Label>
                     <Input
+                      className="border-"
                       id="first_name"
                       type="text"
                       placeholder="Jane"
@@ -198,6 +199,7 @@ export function SigninForm({
                   <div className="grid gap-2">
                     <Label htmlFor="last_name">Last name</Label>
                     <Input
+                      className="border-"
                       id="last_name"
                       type="text"
                       placeholder="Admin"
@@ -214,6 +216,7 @@ export function SigninForm({
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
+                className="border-"
                   id="email"
                   type="email"
                   placeholder="you@coffeecrave.com"
@@ -240,7 +243,7 @@ export function SigninForm({
                     autoComplete={mode === "signin" ? "current-password" : "new-password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pr-16"
+                    className="pr-16 border-"
                   />
                   <button
                     type="button"
@@ -260,6 +263,7 @@ export function SigninForm({
                 <div className="grid gap-2">
                   <Label htmlFor="confirm">Confirm Password</Label>
                   <Input
+                    className="border-"
                     id="confirm"
                     type={showPasswords ? "text" : "password"}
                     required

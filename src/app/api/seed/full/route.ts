@@ -17,7 +17,7 @@ function fmt(dt: Date) {
   const ms = dt.getTime() + TZ_OFFSET_MINUTES * 60_000;
   const x = new Date(ms);
   const p = (n: number) => String(n).padStart(2, "0");
-  const y = x.getUTCFullYear();
+  const y = x.getUTCFullYear();                        
   const m = p(x.getUTCMonth() + 1);
   const d = p(x.getUTCDate());
   const h = p(x.getUTCHours());

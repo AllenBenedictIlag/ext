@@ -1,6 +1,6 @@
 import { SectionCards } from "@/components/admin/dashboard/kpi-tiles";
 import FeedbackFunnel from "@/components/admin/statistics/feedback-funnel";
-import TrendCard from "@/components/admin/statistics/monthly-receipts";
+import TrendCard from "@/components/admin/statistics/monthly-trend";
 import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
 import FunnelCard from "@/components/admin/statistics/feedback-funnel";
 import PositiveNegative from "@/components/admin/statistics/positive-negative";

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
 import { SectionCards } from "@/components/admin/dashboard/kpi-tiles";
 import FunnelCard from "@/components/admin/statistics/feedback-funnel";
-import TrendCard from "@/components/admin/statistics/monthly-receipts";
+import TrendCard from "@/components/admin/statistics/monthly-trend";
 import AnswerDistribution from "@/components/admin/answers/answer-distribution";
 import PositiveNegative from "@/components/admin/statistics/positive-negative";
 import MiniTrendPerQuestion from "@/components/admin/statistics/mini-trend";
