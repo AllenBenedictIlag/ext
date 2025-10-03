@@ -38,7 +38,7 @@ function monthsSpanInclusive(fromYMD: string, toYMD: string) {
   return (t.getFullYear() - f.getFullYear()) * 12 + (t.getMonth() - f.getMonth()) + 1;
 }
 
-/* ---------- Compute [from, to+1d) window ---------- */
+/* ---------- Compute [from, to+1d) window (PH) ---------- */
 function computeWindow(params: URLSearchParams) {
   const range = params.get("range");
   let from = params.get("from");
@@ -71,18 +71,18 @@ function computeWindow(params: URLSearchParams) {
 }
 
 /* ---------- Granularity rules ---------- */
-type Granularity = "day" | "week" | "month" | "quarter3"; // quarter3 = 3-month buckets aligned to 'to' month
+type Granularity = "day" | "week" | "month" | "quarter3"; // 3-month buckets aligned to 'to'
 function chooseGranularity(fromYMD: string, toYMD: string): Granularity {
   const d = daysInclusive(fromYMD, toYMD);
   const m = monthsSpanInclusive(fromYMD, toYMD);
   if (d === 7) return "day";
   if (d === 30) return "week";
   if (m === 3) return "month";
-  if (m > 24) return "quarter3"; // custom > 2 years
+  if (m > 24) return "quarter3";
   return "month";
 }
 
-/* ---------- JS helpers for bucket building ---------- */
+/* ---------- Bucket builders ---------- */
 function mondayOfWeekPH(d: Date): Date {
   const js = new Date(d);
   const wd = js.getDay(); // 0=Sun..6=Sat
@@ -95,12 +95,7 @@ function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function addMonths(d: Date, n: number) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
 
-/* ---------- Build bucket sequence & labels ---------- */
-type Bucket = {
-  key: string;       // canonical key to group SQL results with
-  axisLabel: string; // label shown on X axis
-  tooltip: string;   // tooltip label
-};
+type Bucket = { key: string; axisLabel: string; tooltip: string };
 
 function buildBuckets(fromYMD: string, toYMD: string, gran: Granularity): Bucket[] {
   const startPH = new Date(`${fromYMD}T00:00:00${MANILA_TZ}`);
@@ -120,12 +115,11 @@ function buildBuckets(fromYMD: string, toYMD: string, gran: Granularity): Bucket
   }
 
   if (gran === "week") {
-    // Monday-aligned buckets covering [from..to]
     const startMon = mondayOfWeekPH(startPH);
     const endMon   = mondayOfWeekPH(endPH);
     const out: Bucket[] = [];
     for (let d = new Date(startMon); d <= endMon; d = addDays(d, 7)) {
-      const key = ymd(d); // Monday key
+      const key = ymd(d);
       out.push({
         key,
         axisLabel: d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Asia/Manila" }),
@@ -150,25 +144,21 @@ function buildBuckets(fromYMD: string, toYMD: string, gran: Granularity): Bucket
     return out;
   }
 
-  // quarter3: 3-month buckets aligned to 'to' month, labels show the ENDING month ("Sep", "Jun", ...)
+  // quarter3: 3-month buckets aligned so the last bucket ends at the 'to' month.
   {
     const endMonth = startOfMonth(endPH);
     const startMonth = startOfMonth(startPH);
-
-    // months between start and end
     const diffMonths = (endMonth.getFullYear() - startMonth.getFullYear()) * 12 + (endMonth.getMonth() - startMonth.getMonth());
-    // first bucket end month >= start, aligned to end by groups of 3
     const firstEnd = addMonths(endMonth, - (Math.floor(diffMonths / 3) * 3));
 
     const out: Bucket[] = [];
     for (let d = new Date(firstEnd); d <= endMonth; d = addMonths(d, 3)) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM of ENDING month
       const from3 = addMonths(d, -2);
-      const rangeLabel = `${from3.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })}–${d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })} ${d.getFullYear()}`;
       out.push({
         key,
         axisLabel: d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" }), // "Sep", "Jun", ...
-        tooltip:   rangeLabel, // "Jul–Sep 2025"
+        tooltip:   `${from3.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })}–${d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })} ${d.getFullYear()}`
       });
     }
     return out;
@@ -178,25 +168,14 @@ function buildBuckets(fromYMD: string, toYMD: string, gran: Granularity): Bucket
 /* ---------- SQL key expressions per granularity ---------- */
 function sqlKeyExpr(gran: Granularity, columnUTC: string, toYMD?: string) {
   const conv = `CONVERT_TZ(${columnUTC},'+00:00','${MANILA_TZ}')`;
-  if (gran === "day") {
-    return `DATE_FORMAT(${conv}, '%Y-%m-%d')`;
-  }
-  if (gran === "week") {
-    // Monday of week
-    return `DATE_FORMAT(DATE_SUB(${conv}, INTERVAL WEEKDAY(${conv}) DAY), '%Y-%m-%d')`;
-  }
-  if (gran === "month") {
-    return `DATE_FORMAT(${conv}, '%Y-%m')`;
-  }
-  // quarter3 (3-month buckets aligned to 'to' month; key = YYYY-MM of ENDING month)
-  // bucket_index = FLOOR( TIMESTAMPDIFF(MONTH, DATE(conv), toDate) / 3 )
-  // end_month_key = DATE_FORMAT( DATE_SUB(toDate, INTERVAL bucket_index*3 MONTH), '%Y-%m')
-  // We need 'to' twice (for TIMESTAMPDIFF and DATE_SUB).
+  if (gran === "day")   return `DATE_FORMAT(${conv}, '%Y-%m-%d')`;
+  if (gran === "week")  return `DATE_FORMAT(DATE_SUB(${conv}, INTERVAL WEEKDAY(${conv}) DAY), '%Y-%m-%d')`;
+  if (gran === "month") return `DATE_FORMAT(${conv}, '%Y-%m')`;
   if (!toYMD) throw new Error("toYMD required for quarter3");
   const toDate = `STR_TO_DATE(?, '%Y-%m-%d')`;
   const bucketIdx = `FLOOR(TIMESTAMPDIFF(MONTH, DATE(${conv}), ${toDate}) / 3)`;
   const endMonthDate = `DATE_SUB(${toDate}, INTERVAL (${bucketIdx})*3 MONTH)`;
-  return `DATE_FORMAT(${endMonthDate}, '%Y-%m')`;
+  return `DATE_FORMAT(${endMonthDate}, '%Y-%m')`; // YYYY-MM of ending month
 }
 
 export async function GET(req: Request) {
@@ -207,22 +186,15 @@ export async function GET(req: Request) {
   const pool = getPool();
 
   try {
-    // Build full bucket list for gaps/labels
     const buckets = buildBuckets(from, to, gran);
 
-    // Build SQL
     const keyR = sqlKeyExpr(gran, "r.issued_at", to);
     const keyS = sqlKeyExpr(gran, "r.issued_at", to);
 
-    // Params differ if quarter3 (needs 'to' twice)
-    const paramsR = gran === "quarter3"
-      ? [FROM_UTC, TO_PLUS_1D_UTC, to, to]
-      : [FROM_UTC, TO_PLUS_1D_UTC];
-    const paramsS = gran === "quarter3"
-      ? [FROM_UTC, TO_PLUS_1D_UTC, to, to]
-      : [FROM_UTC, TO_PLUS_1D_UTC];
+    const paramsR = gran === "quarter3" ? [FROM_UTC, TO_PLUS_1D_UTC, to, to] : [FROM_UTC, TO_PLUS_1D_UTC];
+    const paramsS = gran === "quarter3" ? [FROM_UTC, TO_PLUS_1D_UTC, to, to] : [FROM_UTC, TO_PLUS_1D_UTC];
 
-    // Receipts (cohort by issued_at)
+    // Receipts
     const [rowsR] = await pool.query(
       `
       SELECT ${keyR} AS bucket_key, COUNT(*) AS receipts
@@ -234,7 +206,7 @@ export async function GET(req: Request) {
       paramsR as any
     ) as any;
 
-    // Submissions (join receipts; cohort by the receipt's issued_at)
+    // Submissions (cohort by receipt issued_at)
     const [rowsS] = await pool.query(
       `
       SELECT ${keyS} AS bucket_key, COUNT(*) AS submissions

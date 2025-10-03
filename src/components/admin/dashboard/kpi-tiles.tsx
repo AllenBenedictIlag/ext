@@ -1,3 +1,4 @@
+// src/components/admin/dashboard/kpi-tiles.tsx
 "use client";
 
 import * as React from "react";
@@ -23,23 +24,23 @@ type Kpi =
         | "staff_service"
         | "food_quality";
       title: string;
-      value: number | null; // %
+      value: number | null;
       unit: "%";
-      delta_pp: number | null; // vs prior, percentage points
+      delta_pp: number | null;
     }
   | {
       key: "receipts_issued";
       title: string;
-      value: number; // count
+      value: number;
       unit: "count";
-      delta_pct: number | null; // % change vs prior
+      delta_pct: number | null;
     }
   | {
       key: "response_rate";
       title: string;
-      value: number | null; // %
+      value: number | null;
       unit: "%";
-      delta_pp: number | null; // vs prior, percentage points
+      delta_pp: number | null;
     };
 
 type ApiPayload = {
@@ -52,23 +53,18 @@ type ApiPayload = {
 };
 
 type Props = {
-  /** One of "7d" | "30d" | "90d" | "custom" (default "30d") */
   range?: RangeKey;
-  /**
-   * For range="custom", pass start (inclusive) and end (exclusive).
-   * Accepts "YYYY-MM-DD" (date-only) or full ISO strings.
-   */
   start?: string;
   end?: string;
 };
 
-/* ---------- Local helpers (match GlobalQuickFilter logic) ---------- */
+/* ---------- Local helpers ---------- */
 
 type GlobalFilters = { from: string; to: string; versionId?: string | null };
 
 const DEFAULT_STORAGE_KEY = "dashboard:filters";
 const TZ = "Asia/Manila";
-const MIN_DATE = new Date(2023, 9, 1); // Oct 1, 2023
+const MIN_DATE = new Date(2023, 9, 1);
 
 function todayInManila(): Date {
   const nowPH = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
@@ -100,8 +96,6 @@ function parseUrlDate(s: string | null): Date | null {
 }
 function initialFiltersFromUrlOrStorage(sp: URLSearchParams): GlobalFilters {
   const max = todayInManila();
-
-  // URL first
   const uf = parseUrlDate(sp.get("from"));
   const ut = parseUrlDate(sp.get("to"));
   if (uf && ut) {
@@ -109,8 +103,6 @@ function initialFiltersFromUrlOrStorage(sp: URLSearchParams): GlobalFilters {
     const to = clampDate(ut, MIN_DATE, max);
     return { from: yyyymmdd(from), to: yyyymmdd(to), versionId: null };
   }
-
-  // localStorage next
   try {
     const saved = localStorage.getItem(DEFAULT_STORAGE_KEY);
     if (saved) {
@@ -124,8 +116,6 @@ function initialFiltersFromUrlOrStorage(sp: URLSearchParams): GlobalFilters {
       }
     }
   } catch {}
-
-  // fallback: last 30d
   const d = last30d();
   return { from: yyyymmdd(d.from), to: yyyymmdd(d.to), versionId: null };
 }
@@ -134,14 +124,11 @@ function initialFiltersFromUrlOrStorage(sp: URLSearchParams): GlobalFilters {
 
 export function SectionCards(props: Props) {
   const { range, start, end } = props;
-
-  // Pick data source: explicit props win; otherwise use global filter (URL/event).
   const searchParams = useSearchParams();
   const [globalFilters, setGlobalFilters] = React.useState<GlobalFilters>(() =>
     initialFiltersFromUrlOrStorage(searchParams)
   );
 
-  // Subscribe to GlobalQuickFilter events
   React.useEffect(() => {
     function onFilters(e: Event) {
       const detail = (e as CustomEvent<GlobalFilters>).detail;
@@ -152,16 +139,13 @@ export function SectionCards(props: Props) {
     return () => window.removeEventListener("dashboard:filters", onFilters as EventListener);
   }, []);
 
-  // Decide the effective query to call the API with
   const effective = React.useMemo(() => {
     if (range && range !== "custom") {
-      // If the caller gave a fixed preset, let the API handle it
       return { kind: "preset" as const, range, start: undefined, end: undefined };
     }
     if (range === "custom" && start && end) {
       return { kind: "custom" as const, range: "custom" as RangeKey, start, end };
     }
-    // Otherwise, use global filters as custom
     return {
       kind: "custom" as const,
       range: "custom" as RangeKey,
@@ -174,10 +158,8 @@ export function SectionCards(props: Props) {
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
-  // Fetch when the effective inputs change
   React.useEffect(() => {
     let url: string;
-
     if (effective.kind === "preset") {
       url = `/api/admin/dashboard/kpi-tiles?range=${encodeURIComponent(effective.range)}`;
     } else {
@@ -213,7 +195,6 @@ export function SectionCards(props: Props) {
     };
   }, [effective.kind, effective.range, effective.start, effective.end]);
 
-  // Color tokens per tile, matching your original inline styles
   const colorVars: Record<Kpi["key"], string> = {
     overall_satisfaction: "var(--color-1)",
     order_accuracy: "var(--color-2)",
@@ -223,7 +204,6 @@ export function SectionCards(props: Props) {
     response_rate: "var(--color-6)"
   };
 
-  // Order the tiles like your original layout
   const order: Kpi["key"][] = [
     "overall_satisfaction",
     "order_accuracy",
@@ -260,35 +240,32 @@ export function SectionCards(props: Props) {
           const color = colorVars[kpi.key];
           const { title } = kpi;
 
-          // Value string
           const valueStr =
             kpi.unit === "%"
               ? formatMaybePct(kpi.value)
               : formatCount((kpi as Extract<Kpi, { unit: "count" }>).value);
 
-          // Delta string + arrow
-          const { deltaLabel, TrendIcon } = (() => {
+          const { delta, TrendIcon } = (() => {
             if (kpi.key === "receipts_issued") {
               const d = (kpi as Extract<Kpi, { key: "receipts_issued" }>).delta_pct;
-              if (d == null) return { deltaLabel: "— vs prior", TrendIcon: null as any };
-              return {
-                deltaLabel: `${formatSigned(d)}% vs prior`,
-                TrendIcon: d >= 0 ? IconTrendingUp : IconTrendingDown,
-              };
+              return { delta: d, TrendIcon: d != null ? (d >= 0 ? IconTrendingUp : IconTrendingDown) : null };
             } else {
               const d = (kpi as Extract<Kpi, { delta_pp: number | null }>).delta_pp;
-              if (d == null) return { deltaLabel: "— vs prior", TrendIcon: null as any };
-              return {
-                deltaLabel: `${formatSigned(d)}% vs prior`,
-                TrendIcon: d >= 0 ? IconTrendingUp : IconTrendingDown,
-              };
+              return { delta: d, TrendIcon: d != null ? (d >= 0 ? IconTrendingUp : IconTrendingDown) : null };
             }
           })();
+
+          const deltaClass =
+            delta == null
+              ? "text-muted-foreground"
+              : delta >= 0
+              ? "text-green-600 dark:text-green-400"
+              : "text-red-600 dark:text-red-400";
 
           return (
             <Card key={kpi.key} className="@container/card" data-kpi={kpi.key}>
               <CardHeader>
-                <CardTitle className="">{title}</CardTitle>
+                <CardTitle>{title}</CardTitle>
                 <CardTitle
                   style={{ color }}
                   className="text-3xl font-semibold tabular-nums @[250px]/card:text-3xl"
@@ -298,8 +275,17 @@ export function SectionCards(props: Props) {
               </CardHeader>
               <CardFooter className="flex-col items-start gap-1 text-sm">
                 <div className="line-clamp-1 flex items-center gap-1 font-medium">
-                  {deltaLabel}
-                  {TrendIcon ? <TrendIcon className="size-4" /> : null}
+                  {delta != null ? (
+                    <>
+                      <span className={deltaClass}>{formatSigned(delta)}%</span>
+                      {TrendIcon ? <TrendIcon className={`size-4 ${deltaClass}`} /> : null}
+                      <span>vs prior</span>
+                    </>
+                  ) : (
+                    <span>
+                      {effective.range === "custom" ? "vs prior" : "— vs prior"}
+                    </span>
+                  )}
                 </div>
               </CardFooter>
             </Card>
@@ -315,23 +301,19 @@ function formatMaybePct(n: number | null) {
   if (n == null || Number.isNaN(n)) return "—";
   return `${round1(n)}%`;
 }
-
 function formatCount(n: number) {
   if (n == null || Number.isNaN(n)) return "—";
   return Intl.NumberFormat().format(n);
 }
-
 function formatSigned(n: number) {
   const r = round1(n);
   if (r > 0) return `+${r}`;
   if (r < 0) return `${r}`;
   return "0.0";
 }
-
 function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
-
 async function safeJson(res: Response) {
   try {
     return await res.json();
@@ -340,18 +322,14 @@ async function safeJson(res: Response) {
   }
 }
 
-/* ---------- tiny UI states (match your card grid) ---------- */
+/* ---------- tiny UI states ---------- */
 
 function SkeletonRow() {
   const items = Array.from({ length: 6 });
   return (
     <>
       {items.map((_, i) => (
-        <Card
-          key={`s-${i}`}
-          className="@container/card animate-pulse"
-          style={{ color: "var(--muted-foreground)" }}
-        >
+        <Card key={`s-${i}`} className="@container/card animate-pulse">
           <CardHeader>
             <div className="h-4 w-32 rounded bg-muted/60" />
             <div className="mt-2 h-7 w-16 rounded bg-muted/60" />
@@ -364,24 +342,17 @@ function SkeletonRow() {
     </>
   );
 }
-
 function ErrorRow({ message }: { message: string }) {
   const items = Array.from({ length: 6 });
   return (
     <>
       {items.map((_, i) => (
-        <Card
-          key={`e-${i}`}
-          className="@container/card"
-          style={{ color: "var(--destructive)" }}
-        >
+        <Card key={`e-${i}`} className="@container/card" style={{ color: "var(--destructive)" }}>
           <CardHeader>
             <CardDescription>Error</CardDescription>
             <CardTitle className="text-lg font-semibold">Failed to load</CardTitle>
           </CardHeader>
-          <CardFooter className="text-sm opacity-80">
-            {message || "Unknown error"}
-          </CardFooter>
+          <CardFooter className="text-sm opacity-80">{message || "Unknown error"}</CardFooter>
         </Card>
       ))}
     </>

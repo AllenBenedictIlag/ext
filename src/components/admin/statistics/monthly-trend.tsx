@@ -35,12 +35,13 @@ type ApiResponse = {
 
 type Props = { cardClassName?: string };
 
-/* ---------- Read initial {from,to} ---------- */
-function getInitialRange(): { from: string; to: string } {
-  const sp = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+/* ---------- Client-only range read (avoid SSR) ---------- */
+function getInitialRangeClient(): { from: string; to: string } {
+  const sp = new URLSearchParams(window.location.search);
   const from = sp.get("from");
   const to = sp.get("to");
   if (from && to) return { from, to };
+
   try {
     const saved = localStorage.getItem("dashboard:filters");
     if (saved) {
@@ -48,6 +49,8 @@ function getInitialRange(): { from: string; to: string } {
       if (j.from && j.to) return { from: j.from, to: j.to };
     }
   } catch {}
+
+  // PH last 30 days (client-only)
   const nowPH = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
   const end = new Date(nowPH.getFullYear(), nowPH.getMonth(), nowPH.getDate());
   const start = new Date(end); start.setDate(start.getDate() - 29);
@@ -60,10 +63,11 @@ const NF = new Intl.NumberFormat("en-US");
 const fmtNum = (n: number) => NF.format(Math.round(n));
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
-/* ---------- Colors (tokens 1..5 only) ---------- */
+/* ---------- Colors (use tokens directly) ---------- */
 const COLOR_RECEIPTS = "var(--chart-1)";
 const COLOR_SUBMITS  = "var(--chart-2)";
 const COLOR_PERCENT  = "var(--chart-3)";
+const GRID_COLOR     = "hsl(var(--muted) / 0.35)";
 
 /* ---------- Tooltip ---------- */
 function TrendTooltip({ active, payload }: TooltipProps<number, string>) {
@@ -94,11 +98,32 @@ function TrendTooltip({ active, payload }: TooltipProps<number, string>) {
   );
 }
 
-/* ---------- Component ---------- */
+/* ---------- Component (SSR-safe) ---------- */
 export default function MonthlyTrend({ cardClassName }: Props) {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [mounted, setMounted] = React.useState(false);
+  const [range, setRange] = React.useState<{ from: string; to: string } | null>(null);
   const [rows, setRows] = React.useState<ApiPoint[] | null>(null);
   const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    setMounted(true);
+    const initial = getInitialRangeClient();
+    setRange(initial);
+    fetchData(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    if (!mounted) return;
+    function onFilters(e: Event) {
+      const detail = (e as CustomEvent<{ from: string; to: string }>).detail;
+      if (!detail) return;
+      setRange(detail);
+      fetchData(detail);
+    }
+    window.addEventListener("dashboard:filters", onFilters as EventListener);
+    return () => window.removeEventListener("dashboard:filters", onFilters as EventListener);
+  }, [mounted]);
 
   async function fetchData(f: { from: string; to: string }) {
     setLoading(true);
@@ -113,22 +138,28 @@ export default function MonthlyTrend({ cardClassName }: Props) {
     }
   }
 
-  // initial fetch
-  React.useEffect(() => { fetchData(range); /* eslint-disable-next-line */ }, []);
+  const footer = range ? `${range.from} → ${range.to}` : "—";
 
-  // subscribe to GlobalQuickFilter updates
-  React.useEffect(() => {
-    function onFilters(e: Event) {
-      const detail = (e as CustomEvent<{ from: string; to: string }>).detail;
-      if (!detail) return;
-      setRange(detail);
-      fetchData(detail);
-    }
-    window.addEventListener("dashboard:filters", onFilters as EventListener);
-    return () => window.removeEventListener("dashboard:filters", onFilters as EventListener);
-  }, []);
+  // Until mounted, render a stable skeleton (prevents SSR/client mismatch)
+  if (!mounted) {
+    return (
+      <Card className={`md:col-span-5 h-120 rounded-xl border shadow-sm bg-card ${cardClassName ?? ""}`}>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Monthly Receipts & Response Trend</CardTitle>
+            <CardDescription>Receipts • Submissions • Response %</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="h-[calc(100%-4rem)] flex items-center">
+          <div className="w-full h-full animate-pulse rounded-md bg-muted/40" />
+        </CardContent>
+        <CardFooter className="px-6 text-xs text-muted-foreground">
+          <p>—</p>
+        </CardFooter>
+      </Card>
+    );
+  }
 
-  const footer = `${range.from} → ${range.to}`;
   const data = rows ?? [];
   const empty = !loading && (!data.length || data.every(d => d.receipts === 0 && d.submissions === 0));
 
@@ -158,7 +189,7 @@ export default function MonthlyTrend({ cardClassName }: Props) {
             <ComposedChart
               data={data}
               aria-label="Receipts (bars), Submissions (line), Response % (right-axis line) with dynamic X ticks"
-              margin={{ top: 12, right: 28, bottom: 0, left: 12 }}
+              margin={{ top: 12, right: 28, left: 12 }}
             >
               <CartesianGrid stroke="var(--chart-cartesian)" />
               <XAxis
@@ -185,20 +216,20 @@ export default function MonthlyTrend({ cardClassName }: Props) {
               />
               <RechartsTooltip content={<TrendTooltip />} wrapperStyle={{ outline: "none" }} />
               <Legend
-                  iconSize={10}
-                  height={24}
-                  formatter={(value) => (
-                    <span
-                      style={{
-                        fontSize: "12px",        // tweak size
-                        fontWeight: 400,         // or "bold"
-                        color: "var(--card-foreground)", // use your theme variable
-                      }}
-                    >
-                      {value}
-                    </span>
-                  )}
-                />
+              iconSize={10}
+              height={24}
+              formatter={(value) => (
+                <span
+                  style={{
+                    fontSize: "12px",        // tweak size
+                    fontWeight: 400,         // or "bold"
+                    color: "var(--card-foreground)", // use your theme variable
+                  }}
+                >
+                  {value}
+                </span>
+              )}
+            />
               <Bar
                 yAxisId="count"
                 dataKey="receipts"
