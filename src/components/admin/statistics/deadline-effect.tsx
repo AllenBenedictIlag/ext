@@ -143,7 +143,7 @@ export default function DeadlineEffect() {
               margin={{ top: 16, right: 20, bottom: 0, left: 12 }}
               barCategoryGap={20}
             >
-              <CartesianGrid stroke="hsl(var(--muted) / 0.35)" />
+              <CartesianGrid stroke="var(--chart-cartesian)" />
               <XAxis
                 dataKey="day"
                 tickFormatter={(d: number) => (d === 7 ? "Day 7 (expiry)" : `Day ${d}`)}

@@ -777,7 +777,7 @@ export default function QuestionsTable({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/questions?from=${f.from}&to=${f.to}`,
+        `/api/admin/questions/questions-table?from=${f.from}&to=${f.to}`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();

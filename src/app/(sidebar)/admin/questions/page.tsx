@@ -1,11 +1,11 @@
 import AnomaliesTable from "@/components/superadmin/data-quality/anomalies-table";
 import AnswersTable from "@/components/admin/answers/answers-table";
 import AuditLog from "@/components/superadmin/audit-log/audit-log";
-import CommentFeed from "@/components/admin/analytics/comment-feed";
-import QuestionsBuilder from "@/components/admin/analytics/question-builder";
+import CommentFeed from "@/components/admin/comments/comment-feed";
+import QuestionsBuilder from "@/components/admin/questions/question-builder";
 import ReceiptsTable from "@/components/admin/receipts/receipts-table";
 import UsersTable from "@/components/superadmin/users/users-table";
-import QuestionsTable from "@/components/admin/tables/questions";
+import QuestionsTable from "@/components/admin/questions/questions";
 
 export default function QuestionsPage(){
   return (

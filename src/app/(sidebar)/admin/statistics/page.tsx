@@ -13,6 +13,7 @@ import CumulativeUsage from "@/components/admin/statistics/cumulative-usage";
 import TimeToUse from "@/components/admin/statistics/time-to-use";
 import SubmissionsPattern from "@/components/admin/statistics/submissions-pattern";
 import DeadlineEffect from "@/components/admin/statistics/deadline-effect";
+import MonthlyTrend from "@/components/admin/statistics/monthly-trend";
 
 export default function StatisticsPage(){
     return (
@@ -21,7 +22,7 @@ export default function StatisticsPage(){
        
             <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
                 <FunnelCard />
-                <TrendCard/>
+                <MonthlyTrend/>
             </div>
 
             <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">

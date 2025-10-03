@@ -76,7 +76,7 @@ export default function CommentVolume() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/dashboard/comment-volume?from=${f.from}&to=${f.to}`,
+        `/api/admin/comments/comment-volume?from=${f.from}&to=${f.to}`,
         { cache: "no-store" }
       );
       const json: ApiResponse = await res.json();
@@ -161,11 +161,7 @@ export default function CommentVolume() {
               aria-label="Comment volume over time (daily counts)"
               margin={{ top: 8, right: 24, bottom: 0, left: 10 }}
             >
-              <CartesianGrid
-                stroke="var(--chart-2)"
-                strokeOpacity={0.7}
-                strokeDasharray="3 3"
-                />
+              <CartesianGrid stroke="var(--chart-cartesian)" />
               <XAxis
                 dataKey="name"
                 ticks={ticks}

@@ -201,7 +201,7 @@ export default function MiniTrendPerQuestion() {
                     margin={{ top: 6, right: 8, bottom: 4, left: 8 }}
                     aria-label={`Positive % trend for ${q.question_key}`}
                   >
-                    <CartesianGrid stroke="rgba(0,0,0,.12)" />
+                    <CartesianGrid stroke="var(--chart-cartesian)" />
                     <XAxis dataKey="name" tickMargin={6} height={20} tick={{ fontSize: 10 }} />
                     <YAxis
                       domain={[0, 100]}

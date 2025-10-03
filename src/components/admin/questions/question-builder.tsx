@@ -693,7 +693,7 @@ export default function QuestionsBuilder({
         setLoading(true);
         setError(false);
         const res = await fetch(
-          "/api/admin/dashboard/question-builder?limit=500&sort=updated_at&dir=desc",
+          "/api/admin/questions/question-builder?limit=500&sort=updated_at&dir=desc",
           { method: "GET", cache: "no-store" }
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

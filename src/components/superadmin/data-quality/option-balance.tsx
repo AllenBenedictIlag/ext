@@ -170,7 +170,7 @@ export default function OptionBalance() {
   const pieData = pieKind === "LIKERT" ? pieLikert : pieYesNo;
 
   return (
-    <Card className="md:col-span-4 h-120 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-3 h-120 rounded-xl border shadow-sm bg-card">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle>Option Balance</CardTitle>

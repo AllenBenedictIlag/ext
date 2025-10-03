@@ -178,20 +178,20 @@ export default function PositiveNegative() {
 
             {/* Smaller legend text + icons so it won’t push the chart */}
             <Legend
-                          iconSize={10}
-                          height={24}
-                          formatter={(value) => (
-                            <span
-                              style={{
-                                fontSize: "12px",        // tweak size
-                                fontWeight: 400,         // or "bold"
-                                color: "var(--card-foreground)", // use your theme variable
-                              }}
-                            >
-                              {value}
-                            </span>
-                          )}
-              />
+              iconSize={10}
+              height={24}
+              formatter={(value) => (
+                <span
+                  style={{
+                    fontSize: "12px",        // tweak size
+                    fontWeight: 400,         // or "bold"
+                    color: "var(--card-foreground)", // use your theme variable
+                  }}
+                >
+                  {value}
+                </span>
+              )}
+            />
 
             {/* INNER RING — use percent radii so it scales with container */}
             <Pie

@@ -155,7 +155,7 @@ export default function CumulativeUsage() {
               aria-label="Cumulative Usage (7 Days): running percent of receipts used by day 0–7"
               margin={{ top: 10, right: 24, bottom: 8, left: 12 }}
             >
-              <CartesianGrid stroke="hsl(var(--muted) / 0.35)" strokeDasharray="3 3" />
+              <CartesianGrid stroke="var(--chart-cartesian)" />
               <XAxis
                 dataKey="name"
                 tickMargin={6}

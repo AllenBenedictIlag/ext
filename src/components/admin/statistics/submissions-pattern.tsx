@@ -154,7 +154,7 @@ export default function SubmissionsPattern() {
   const empty = !loading && dataCells.every((c) => c.count === 0);
 
   return (
-    <Card className="md:col-span-8 h-120 rounded-xl border shadow-sm bg-card px-4">
+    <Card className="md:col-span-8 h-90 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Submission Patterns</CardTitle>

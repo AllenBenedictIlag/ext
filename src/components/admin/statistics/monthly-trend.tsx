@@ -18,33 +18,29 @@ import {
   type TooltipProps,
 } from "recharts";
 
-/* ---------- Types ---------- */
-type ApiMonth = {
-  monthKey: string;     // "YYYY-MM"
-  axisLabel: string;    // "Oct ’24"
-  tooltipLabel: string; // "October 2024"
+/* ---------- API types ---------- */
+type ApiPoint = {
+  bucketKey: string;
+  axisLabel: string;
+  tooltipLabel: string;
   receipts: number;
   submissions: number;
-  responsePct: number;  // 0..100
+  responsePct: number;
 };
 type ApiResponse = {
   window: { from: string; to: string };
-  basis: { cohort: "issued_at"; tz: "Asia/Manila" };
-  months: ApiMonth[];
+  basis: { cohort: "issued_at"; tz: "Asia/Manila"; granularity: "day" | "week" | "month" | "quarter3" };
+  points: ApiPoint[];
 };
 
-type Props = {
-  /** Optional parent sizing (e.g. "md:col-span-5 h-120") */
-  cardClassName?: string;
-};
+type Props = { cardClassName?: string };
 
-/* ---------- Safe initial range ---------- */
+/* ---------- Read initial {from,to} ---------- */
 function getInitialRange(): { from: string; to: string } {
   const sp = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const from = sp.get("from");
   const to = sp.get("to");
   if (from && to) return { from, to };
-
   try {
     const saved = localStorage.getItem("dashboard:filters");
     if (saved) {
@@ -52,8 +48,6 @@ function getInitialRange(): { from: string; to: string } {
       if (j.from && j.to) return { from: j.from, to: j.to };
     }
   } catch {}
-
-  // PH last 30 days fallback
   const nowPH = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
   const end = new Date(nowPH.getFullYear(), nowPH.getMonth(), nowPH.getDate());
   const start = new Date(end); start.setDate(start.getDate() - 29);
@@ -68,16 +62,14 @@ const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
 /* ---------- Colors (tokens 1..5 only) ---------- */
 const COLOR_RECEIPTS = "var(--chart-1)";
-const COLOR_SUBMISSIONS = "var(--chart-2)";
-const COLOR_RESPONSE = "var(--chart-3)";
-const GRID_COLOR = "hsl(var(--muted) / 0.35)";
+const COLOR_SUBMITS  = "var(--chart-2)";
+const COLOR_PERCENT  = "var(--chart-3)";
 
 /* ---------- Tooltip ---------- */
-function TrendTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function TrendTooltip({ active, payload }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
-  const p = payload[0]?.payload as ApiMonth | undefined;
+  const p = payload[0]?.payload as ApiPoint | undefined;
   if (!p) return null;
-
   return (
     <div className="rounded-md border bg-card px-3 py-2 text-sm shadow-sm">
       <div className="mb-1 font-medium">{p.tooltipLabel}</div>
@@ -88,12 +80,12 @@ function TrendTooltip({ active, payload, label }: TooltipProps<number, string>) 
           <span className="font-medium">{fmtNum(p.receipts)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR_SUBMISSIONS }} />
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR_SUBMITS }} />
           <span className="text-muted-foreground">Submissions:</span>
           <span className="font-medium">{fmtNum(p.submissions)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: COLOR_RESPONSE }} />
+          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: COLOR_PERCENT }} />
           <span className="text-muted-foreground">Response %:</span>
           <span className="font-medium">{fmtPct(p.responsePct)}</span>
         </div>
@@ -105,18 +97,15 @@ function TrendTooltip({ active, payload, label }: TooltipProps<number, string>) 
 /* ---------- Component ---------- */
 export default function MonthlyTrend({ cardClassName }: Props) {
   const [range, setRange] = React.useState(getInitialRange);
-  const [rows, setRows] = React.useState<ApiMonth[] | null>(null);
+  const [rows, setRows] = React.useState<ApiPoint[] | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   async function fetchData(f: { from: string; to: string }) {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/admin/statistics/monthly-trend?from=${f.from}&to=${f.to}`,
-        { cache: "no-store" }
-      );
+      const res = await fetch(`/api/admin/statistics/monthly-trend?from=${f.from}&to=${f.to}`, { cache: "no-store" });
       const json: ApiResponse = await res.json();
-      setRows(json.months ?? []);
+      setRows(json.points ?? []);
     } catch {
       setRows([]);
     } finally {
@@ -125,10 +114,7 @@ export default function MonthlyTrend({ cardClassName }: Props) {
   }
 
   // initial fetch
-  React.useEffect(() => {
-    fetchData(range);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  React.useEffect(() => { fetchData(range); /* eslint-disable-next-line */ }, []);
 
   // subscribe to GlobalQuickFilter updates
   React.useEffect(() => {
@@ -144,17 +130,17 @@ export default function MonthlyTrend({ cardClassName }: Props) {
 
   const footer = `${range.from} → ${range.to}`;
   const data = rows ?? [];
-  const empty = !loading && (!data.length || data.every((m) => m.receipts === 0 && m.submissions === 0));
+  const empty = !loading && (!data.length || data.every(d => d.receipts === 0 && d.submissions === 0));
 
-  // Left axis max (nice-ish)
-  const maxCount = Math.max(0, ...data.map((d) => Math.max(d.receipts, d.submissions)));
+  // Left-axis nice max
+  const maxCount = Math.max(0, ...data.map(d => Math.max(d.receipts, d.submissions)));
   const yMax =
     maxCount <= 1000 ? Math.ceil(maxCount / 200) * 200 :
     maxCount <= 5000 ? Math.ceil(maxCount / 500) * 500 :
     Math.ceil(maxCount / 1000) * 1000;
 
   return (
-    <Card className={`md:col-span-5 h-120 rounded-xl border shadow-sm bg-card ${cardClassName ?? ""}`}>
+    <Card className={`md:col-span-5 h-90 rounded-xl border shadow-sm bg-card ${cardClassName ?? ""}`}>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Monthly Receipts & Response Trend</CardTitle>
@@ -171,18 +157,16 @@ export default function MonthlyTrend({ cardClassName }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={data}
-              aria-label="Monthly Trend: Receipts (bars), Submissions (line), Response % (right-axis line)"
-              margin={{ top: 12, right: 28, bottom: 8, left: 12 }}
+              aria-label="Receipts (bars), Submissions (line), Response % (right-axis line) with dynamic X ticks"
+              margin={{ top: 12, right: 28, bottom: 0, left: 12 }}
             >
-              <CartesianGrid stroke={GRID_COLOR} />
+              <CartesianGrid stroke="var(--chart-cartesian)" />
               <XAxis
                 dataKey="axisLabel"
                 tickMargin={6}
                 tick={{ fontSize: 12 }}
                 height={28}
               />
-
-              {/* LEFT axis = counts */}
               <YAxis
                 yAxisId="count"
                 domain={[0, Math.max(200, yMax)]}
@@ -190,8 +174,6 @@ export default function MonthlyTrend({ cardClassName }: Props) {
                 width={52}
                 tickFormatter={(v) => fmtNum(Number(v))}
               />
-
-              {/* RIGHT axis = percent */}
               <YAxis
                 yAxisId="pct"
                 orientation="right"
@@ -201,11 +183,22 @@ export default function MonthlyTrend({ cardClassName }: Props) {
                 width={40}
                 tickFormatter={(v) => `${v}%`}
               />
-
               <RechartsTooltip content={<TrendTooltip />} wrapperStyle={{ outline: "none" }} />
-              <Legend iconSize={10} height={24} wrapperStyle={{ fontSize: 12 }} />
-
-              {/* Bars = Receipts (left axis) */}
+              <Legend
+                  iconSize={10}
+                  height={24}
+                  formatter={(value) => (
+                    <span
+                      style={{
+                        fontSize: "12px",        // tweak size
+                        fontWeight: 400,         // or "bold"
+                        color: "var(--card-foreground)", // use your theme variable
+                      }}
+                    >
+                      {value}
+                    </span>
+                  )}
+                />
               <Bar
                 yAxisId="count"
                 dataKey="receipts"
@@ -215,27 +208,23 @@ export default function MonthlyTrend({ cardClassName }: Props) {
                 radius={[6, 6, 0, 0]}
                 isAnimationActive
               />
-
-              {/* Line = Submissions (left axis) */}
               <Line
                 yAxisId="count"
                 type="monotone"
                 dataKey="submissions"
                 name="Submissions"
-                stroke={COLOR_SUBMISSIONS}
+                stroke={COLOR_SUBMITS}
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 4 }}
                 isAnimationActive
               />
-
-              {/* Line = Response % (right axis) */}
               <Line
                 yAxisId="pct"
                 type="monotone"
                 dataKey="responsePct"
                 name="Response %"
-                stroke={COLOR_RESPONSE}
+                stroke={COLOR_PERCENT}
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 4 }}

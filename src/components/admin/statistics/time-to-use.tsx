@@ -141,11 +141,7 @@ export default function TimeToUse() {
               <RechartsTooltip content={<HistogramTooltip />} wrapperStyle={{ outline: "none" }} cursor={{ fill: "var(--muted)" }} />
               <XAxis dataKey="label" tickMargin={8} tick={{ fontSize: 12 }} height={30}/>
               <YAxis tick={{ fontSize: 11 }} width={46} tickLine={false} axisLine={false} />
-               <CartesianGrid
-                stroke="var(--chart-2)"
-                strokeOpacity={0.7}
-                strokeDasharray="3 3"
-                />
+              <CartesianGrid stroke="var(--chart-cartesian)" />
                 
               <Bar dataKey="count" name="Used" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
             </BarChart>

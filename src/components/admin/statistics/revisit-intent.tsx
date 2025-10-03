@@ -173,13 +173,7 @@ export default function RevisitIntent() {
             </defs>
 
             {/* 1) Grid FIRST = drawn behind */}
-            <CartesianGrid
-              stroke={`var(--muted-foreground)`}
-              strokeOpacity={0.25}        // make it subtle
-              // optional:
-              // vertical={true}
-              // horizontal={true}
-            />
+            <CartesianGrid stroke="var(--chart-cartesian)" />
 
             {/* 2) Axes */}
             <XAxis

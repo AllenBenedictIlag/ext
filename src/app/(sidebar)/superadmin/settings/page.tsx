@@ -1,4 +1,4 @@
-import RequiredCoverage from "@/components/admin/analytics/required-coverage";
+import RequiredCoverage from "@/components/superadmin/data-quality/required-coverage";
 
 export default function SettingsPage() {
     return (

@@ -186,11 +186,7 @@ export default function DriverRevisit() {
                 tick={{ fontSize: 12 }}
                 tickFormatter={(v) => titleizeKey(String(v))}
               />
-              <CartesianGrid
-                stroke="var(--chart-2)"
-                strokeOpacity={0.7}
-                strokeDasharray="3 3"
-              />
+              <CartesianGrid stroke="var(--chart-cartesian)" />
               <XAxis
                 type="number"
                 domain={[-maxAbs, maxAbs]}
