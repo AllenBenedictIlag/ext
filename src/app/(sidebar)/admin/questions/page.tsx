@@ -5,7 +5,7 @@ import CommentFeed from "@/components/admin/comments/comment-feed";
 import QuestionsBuilder from "@/components/admin/questions/question-builder";
 import ReceiptsTable from "@/components/admin/receipts/receipts-table";
 import UsersTable from "@/components/superadmin/users/users-table";
-import QuestionsTable from "@/components/admin/questions/questions";
+import QuestionsTable from "@/components/admin/questions/questions-table";
 
 export default function QuestionsPage(){
   return (

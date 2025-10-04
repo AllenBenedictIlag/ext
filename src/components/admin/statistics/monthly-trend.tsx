@@ -64,10 +64,10 @@ const fmtNum = (n: number) => NF.format(Math.round(n));
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
 /* ---------- Colors (use tokens directly) ---------- */
-const COLOR_RECEIPTS = "var(--chart-1)";
-const COLOR_SUBMITS  = "var(--chart-2)";
-const COLOR_PERCENT  = "var(--chart-3)";
-const GRID_COLOR     = "hsl(var(--muted) / 0.35)";
+const COLOR_RECEIPTS = "var(--chart-4)";
+const COLOR_SUBMITS  = "var(--chart-3)";
+const COLOR_PERCENT  = "var(--chart-2)";
+
 
 /* ---------- Tooltip ---------- */
 function TrendTooltip({ active, payload }: TooltipProps<number, string>) {

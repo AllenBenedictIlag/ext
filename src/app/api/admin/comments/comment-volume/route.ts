@@ -1,4 +1,4 @@
-// src/app/api/admin/dashboard/comment-volume/route.ts
+//src\app\api\admin\comments\comment-volume\route.ts
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
 

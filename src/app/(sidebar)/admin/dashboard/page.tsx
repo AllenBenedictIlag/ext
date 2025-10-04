@@ -36,13 +36,20 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
       <GlobalQuickFilter />
       <SectionCards/>
-
-     
+      
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
         <TrendCard/>
         <FunnelCard />
       </div>
   
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <PositiveNegative/>
+        <AnswerDistribution/>  
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
+        <CommentVolume/>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// src/components/admin/dashboard/comment-volume.tsx
+//src\components\admin\comments\comment-volume.tsx
 "use client";
 
 import * as React from "react";
@@ -60,7 +60,6 @@ function VolumeTooltip({ active, payload }: any) {
         <span className="text-muted-foreground">Comments</span>
         <span className="font-semibold">{curr.count}</span>
       </div>
-      <div className="text-muted-foreground mt-1">Free-text responses submitted on this date.</div>
     </div>
   );
 }
@@ -181,7 +180,7 @@ export default function CommentVolume() {
                 type="monotone"
                 dataKey="count"
                 name="Comments"
-                stroke="var(--chart-5)"
+                stroke="var(--chart-3)"
                 strokeWidth={2}
                 dot={{ r: 3, stroke: "var(--chart-1)", fill: "var(--chart-1)" }}
                 activeDot={{ r: 5 }}

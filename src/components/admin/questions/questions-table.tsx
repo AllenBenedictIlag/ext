@@ -51,6 +51,19 @@ import {
   XCircle,
 } from "lucide-react";
 
+/* ---------- ADDED: confirm dialog imports for Export ---------- */
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 /* --------------------------------------------------------------------------------
  * Types
  * -------------------------------------------------------------------------------- */
@@ -518,6 +531,9 @@ function DataTable<T extends object>({
     URL.revokeObjectURL(url);
   }
 
+  /* ---------- ADDED: local state to control confirm dialog ---------- */
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+
   return (
     <div className="flex flex-col gap-3">
       {/* Controls */}
@@ -574,15 +590,32 @@ function DataTable<T extends object>({
             </SelectContent>
           </Select>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportCSV}
-            aria-label="Export CSV"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          {/* ---------- ADDED: Confirm before CSV export ---------- */}
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="default"
+                size="sm"
+                aria-label="Export CSV"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Export CSV?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will export the <strong>currently visible columns</strong> and <strong>all rows</strong> that match your current search &amp; sort.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={exportCSV}>Continue</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          {/* ---------- /ADDED ---------- */}
         </div>
       </div>
 

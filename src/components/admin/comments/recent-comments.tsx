@@ -327,9 +327,9 @@ const COLUMN_DEFS: Column[] = [
   { id: "receipt_number", header: "Receipt", width: "11rem", sortable: true, sortValue: (r) => r.receipt_number },
   {
     id: "preview",
-    header: "Snippet",
+    header: "Comment",
     width: "36rem",
-    render: (r) => <EllipsisWithTooltip text={r.preview} className="max-w-[34rem]" />,
+    // render: (r) => <EllipsisWithTooltip text={r.preview} className="max-w-[34rem]" />,
   },
   { id: "words", header: "Words", width: "6rem", render: (r) => <span>{formatWords(r.words)}</span> },
   {
@@ -474,6 +474,14 @@ function DataTable(props: {
     for (const r of sorted) lines.push(columns.map((c) => csvEscape(getCellRaw(c, r))).join(","));
     return lines.join("\r\n");
   }
+  // Helper to build CSV for a specific subset (used by enhanced Export)  // ADDED
+  function buildCSVForRows(list: Row[]) {                                  // ADDED
+    const headers = columns.map((c) => c.header);                           // ADDED
+    const lines: string[] = [];                                             // ADDED
+    lines.push(headers.map(csvEscape).join(","));                           // ADDED
+    for (const r of list) lines.push(columns.map((c) => csvEscape(getCellRaw(c, r))).join(",")); // ADDED
+    return lines.join("\r\n");                                              // ADDED
+  }                                                                          // ADDED
 
   const headerCells = columns.map((c) => {
     const isSortable =
@@ -506,7 +514,7 @@ function DataTable(props: {
         key={r.comment_id}
         className={[
           selected ? "bg-[hsl(var(--chart-1)/0.30)]" : "odd:bg-muted/30",
-          "hover:bg-muted/50 focus-within:bg-muted/50 transition-colors",
+          "hover:bg-accent/30 focus-within:bg-muted/50 transition-colors",
         ].join(" ")}
         tabIndex={0}
         aria-label={`Row for comment ${r.comment_id}`}
@@ -549,8 +557,57 @@ function DataTable(props: {
     );
   });
 
-  /* ----- Export confirm dialog (AlertDialog) ----- */
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  /* ----- Export flow (two-step) ------------------------------------------- */
+  const [exportOpen, setExportOpen] = React.useState(false);   // ADDED
+  const [confirmOpen, setConfirmOpen] = React.useState(false); // ADDED
+
+  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90"; // ADDED
+  const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER"); // ADDED
+  const PRESET_LABEL: Record<ExportPreset, string> = {                     // ADDED
+    FOLLOW_FILTER: "Follow the Custom Filter",
+    LAST_7:       "Last 7 days",
+    LAST_30:      "Last 30 days",
+    LAST_90:      "Last 3 months",
+  };
+
+  // PH timezone helpers                                                      // ADDED
+  function phTodayYMD() {                                                   // ADDED
+    const nowPH = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })); // ADDED
+    const y = nowPH.getFullYear();                                          // ADDED
+    const m = String(nowPH.getMonth() + 1).padStart(2, "0");                // ADDED
+    const d = String(nowPH.getDate()).padStart(2, "0");                     // ADDED
+    return `${y}-${m}-${d}`;                                                // ADDED
+  }                                                                          // ADDED
+  function phMidnightUTCms(ymd: string) {                                   // ADDED
+    return new Date(`${ymd}T00:00:00+08:00`).getTime();                     // ADDED
+  }                                                                          // ADDED
+  function phEndOfDayUTCms(ymd: string) {                                   // ADDED
+    return new Date(`${ymd}T23:59:59.999+08:00`).getTime();                 // ADDED
+  }                                                                          // ADDED
+
+  function rangeForPreset(p: ExportPreset) {                                 // ADDED
+    if (p === "FOLLOW_FILTER") return null;                                  // ADDED
+    const today = phTodayYMD();                                              // ADDED
+    const endMs = phEndOfDayUTCms(today);                                    // ADDED
+    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90;             // ADDED
+    const startDate = new Date(new Date(`${today}T00:00:00+08:00`).getTime());// ADDED
+    startDate.setDate(startDate.getDate() - (days - 1));                     // ADDED
+    const y = startDate.getFullYear();                                       // ADDED
+    const m = String(startDate.getMonth() + 1).padStart(2, "0");             // ADDED
+    const d = String(startDate.getDate()).padStart(2, "0");                  // ADDED
+    const startYMD = `${y}-${m}-${d}`;                                       // ADDED
+    const startMs = phMidnightUTCms(startYMD);                               // ADDED
+    return { startMs, endMs };                                               // ADDED
+  }                                                                          // ADDED
+
+  function rowsForExport(): Row[] {                                          // ADDED
+    const r = rangeForPreset(exportPreset);                                  // ADDED
+    if (!r) return sorted;                                                   // ADDED
+    return sorted.filter((row) => {                                          // ADDED
+      const t = new Date(row.submitted_at).getTime();                        // ADDED
+      return t >= r.startMs && t <= r.endMs;                                 // ADDED
+    });                                                                       // ADDED
+  }                                                                          // ADDED
 
   return (
     <div className="flex flex-col gap-3">
@@ -580,29 +637,76 @@ function DataTable(props: {
             </SelectContent>
           </Select>
 
-          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          {/* -------- Step 1: Choose export preset (ADDED) -------- */}
+          <AlertDialog open={exportOpen} onOpenChange={setExportOpen}>
             <AlertDialogTrigger asChild>
-              <Button variant="default" className="gap-2" aria-label="Export visible rows to CSV">
+              <Button variant="default" className="gap-2" aria-label="Export rows to CSV">
                 <Download className="h-4 w-4" />
-                Export
+                Export CSV
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Export visible rows?</AlertDialogTitle>
+                <AlertDialogTitle>Export Range</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will export the currently visible (filtered & sorted) rows to CSV.
+                  Choose what time window to export. “Follow the Custom Filter” uses the current dashboard date filter (and table search).
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
+
+              <div className="grid gap-2">
+                <Select
+                  value={exportPreset}
+                  onValueChange={(v) => setExportPreset(v as ExportPreset)}
+                >
+                  <SelectTrigger className="w-full border-2 border-primary/70
+               hover:border-primary
+               data-[state=open]:border-primary
+               focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent className="border-2 border-primary/30 shadow-lg">
+                    <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                    <SelectItem value="LAST_7">Last 7 days</SelectItem>
+                    <SelectItem value="LAST_30">Last 30 days</SelectItem>
+                    <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <AlertDialogFooter className="mt-2">
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    const csv = buildCSV();
-                    downloadCSV("recent-comments.csv", csv);
+                    setExportOpen(false);
+                    setTimeout(() => setConfirmOpen(true), 10);
                   }}
                 >
                   Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* -------- Step 2: Final confirmation (ADDED) -------- */}
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm export</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to export data for{" "}
+                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span>?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Back</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    const data = rowsForExport();
+                    const csv = buildCSVForRows(data);
+                    downloadCSV("recent-comments.csv", csv);
+                  }}
+                >
+                  Yes, export
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -617,7 +721,7 @@ function DataTable(props: {
             <caption className="sr-only">Recent comments spotlight feed</caption>
             {/* Sticky header */}
             <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow className="hover:bg-transparent">{headerCells}</TableRow>
+              <TableRow className="hover:bg-accent/30">{headerCells}</TableRow>
             </TableHeader>
             <TableBody>{bodyRows}</TableBody>
           </Table>
@@ -820,7 +924,7 @@ export default function RecentComments() {
                       key={it.question_id}
                       className={[
                         "rounded-md border p-3",
-                        isComment ? "bg-[hsl(var(--chart-1)/0.30)]" : "",
+                        isComment ? "bg-(var--chart-1)" : "",
                       ].join(" ")}
                     >
                       <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">

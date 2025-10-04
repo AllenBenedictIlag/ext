@@ -55,12 +55,12 @@ function readPeriodFromURL(): Period {
 const pct = (x: number, d: number) => (d ? Math.round((x / d) * 1000) / 10 : 0);
 
 /** ---------- Colors (use your CSS vars) ---------- */
-const C_POS     = "var(--chart-1)";
-const C_NEG     = "var(--chart-2)";
-const C_POS_LIK = "var(--chart-3)";
-const C_POS_YN  = "var(--chart-4)";
-const C_NEG_LIK = "var(--chart-5)";
-const C_NEG_YN  = "var(--chart-6)";
+const C_POS     = "var(--chart-6)";
+const C_POS_LIK = "var(--chart-2)";
+const C_POS_YN  = "var(--chart-3)";
+const C_NEG     = "var(--chart-1)";
+const C_NEG_LIK = "var(--chart-4)";
+const C_NEG_YN  = "var(--chart-5)";
 
 /** ---------- Component ---------- */
 export default function PositiveNegative() {

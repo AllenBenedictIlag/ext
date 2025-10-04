@@ -36,12 +36,12 @@ const DEFAULT_LABELS: Record<string, string> = {
   No: "No",
 };
 const DEFAULT_COLORS: Record<string, string> = {
-  "1": "var(--chart-6)",  // worst
-  "2": "var(--chart-5)",
-  "3": "var(--chart-2)",
-  "4": "var(--chart-1)",      // best
-  No: "var(--chart-6)",
-  Yes: "var(--chart-1)",
+  "1": "var(--chart-3)",  // worst
+  "2": "var(--chart-4)",
+  "3": "var(--chart-5)",
+  "4": "var(--chart-6)",      // best
+  No: "var(--chart-1)",
+  Yes: "var(--chart-6)",
 };
 
 /* ---------- Small utils (URL/localStorage) ---------- */
@@ -184,7 +184,7 @@ export default function AnswerDistribution({
   const resolvedHeight = height ?? cardHeightClass;
 
   return (
-    <Card className={`md:col-span-5 ${resolvedHeight} rounded-xl border shadow-sm bg-si ${cardClassName ?? ""}`}>
+    <Card className={`md:col-span-5 ${resolvedHeight} rounded-xl border shadow-sm bg-card ${cardClassName ?? ""}`}>
       <CardHeader className="flex flex-row items-center justify-between ">
         <div>
           <CardTitle>Answer Distribution</CardTitle>

@@ -21,16 +21,6 @@ export default function StatisticsPage(){
             <GlobalQuickFilter />
        
             <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-                <FunnelCard />
-                <MonthlyTrend/>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-            <AnswerDistribution/>
-            <PositiveNegative/>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
                 
             <MiniTrendPerQuestion />
             </div>

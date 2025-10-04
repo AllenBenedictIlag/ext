@@ -146,9 +146,9 @@ const COLUMNS: ColumnDef<Row>[] = [
     id: "question_key",
     header: "Question Key",
     accessor: (r) => r.question_key,
-    formatter: (v) => (
-      <EllipsizedWithTooltip text={String(v)} className="max-w-[200px]" />
-    ),
+    // formatter: (v) => (
+    //   <EllipsizedWithTooltip text={String(v)} className="max-w-[200px]" />
+    // ),
     width: "220px",
     sortable: true,
     visible: true,
@@ -172,21 +172,21 @@ const COLUMNS: ColumnDef<Row>[] = [
     id: "answer",
     header: "Answer",
     accessor: (r) => r.answer,
-    formatter: (v, row) => {
-      const text = String(v ?? "");
-      const isFreeText = row.type === "TEXT" || row.type === "SHORT_TEXT";
-      const words = isFreeText ? formatWords(text) : undefined;
-      return (
-        <div className="flex items-center gap-2">
-          <EllipsizedWithTooltip text={text} className="max-w-[360px]" />
-          {isFreeText && (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {words} {words === 1 ? "word" : "words"}
-            </span>
-          )}
-        </div>
-      );
-    },
+    // formatter: (v, row) => {
+    //   const text = String(v ?? "");
+    //   const isFreeText = row.type === "TEXT" || row.type === "SHORT_TEXT";
+    //   const words = isFreeText ? formatWords(text) : undefined;
+    //   return (
+    //     <div className="flex items-center gap-2">
+    //       <EllipsizedWithTooltip text={text} className="max-w-[360px]" />
+    //       {isFreeText && (
+    //         <span className="text-xs text-muted-foreground whitespace-nowrap">
+    //           {words} {words === 1 ? "word" : "words"}
+    //         </span>
+    //       )}
+    //     </div>
+    //   );
+    // },
     width: "460px",
     sortable: true,
     visible: true,
