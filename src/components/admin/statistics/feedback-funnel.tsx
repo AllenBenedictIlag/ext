@@ -89,8 +89,8 @@ export default function FeedbackFunnel() {
 
     setPeriod(j.period);
     setStages([
-      { name: "Issued",    value: j.issued,    fill: "var(--chart-4)" },
-      { name: "Used",      value: j.used,      fill: "var(--chart-3)" },
+      { name: "Issued",    value: j.issued,    fill: "var(--chart-6)" },
+      { name: "Used",      value: j.used,      fill: "var(--chart-4)" },
       { name: "Submitted", value: j.submitted, fill: "var(--chart-2)" },
     ]);
   }, []);

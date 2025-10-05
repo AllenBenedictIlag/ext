@@ -78,12 +78,12 @@ function BalanceTooltip({ active, payload, label }: any) {
 }
 
 /* ---------- Colors (your tokens) ---------- */
-const COLOR_L1 = "var(--destructive)";
-const COLOR_L2 = "var(--chart-2)";
-const COLOR_L3 = "var(--chart-4)";
+const COLOR_L1 = "var(--chart-6)";
+const COLOR_L2 = "var(--chart-4)";
+const COLOR_L3 = "var(--chart-2)";
 const COLOR_L4 = "var(--chart-1)";
-const COLOR_YES = "var(--chart-4)";
-const COLOR_NO = "var(--destructive)";
+const COLOR_YES = "var(--chart-6)";
+const COLOR_NO = "var(--chart-1)";
 
 /* ---------- Component ---------- */
 export default function OptionBalance() {
@@ -170,7 +170,7 @@ export default function OptionBalance() {
   const pieData = pieKind === "LIKERT" ? pieLikert : pieYesNo;
 
   return (
-    <Card className="md:col-span-3 h-120 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-4 h-120 rounded-xl border shadow-sm bg-card">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle>Option Balance</CardTitle>
@@ -213,7 +213,21 @@ export default function OptionBalance() {
                 <XAxis dataKey="type" tickMargin={8} tick={{ fontSize: 12 }} height={28} />
                 <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={40} />
                 <RechartsTooltip content={<BalanceTooltip />} wrapperStyle={{ outline: "none" }} />
-                <Legend wrapperStyle={{ fontSize: 14 }} height={28} />
+                <Legend
+                  iconSize={10}
+                  height={24}
+                  formatter={(value) => (
+                    <span
+                      style={{
+                        fontSize: "13px",        // tweak size
+                        fontWeight: 400,         // or "bold"
+                        color: "var(--card-foreground)", // use your theme variable
+                      }}
+                    >
+                      {value}
+                    </span>
+                  )}
+                />
 
                 {/* Likert slices */}
                 <Bar dataKey="o1" name="1 — Extremely Dissatisfied" stackId="LIKERT" fill={COLOR_L1} />
@@ -228,7 +242,22 @@ export default function OptionBalance() {
             ) : (
               <PieChart aria-label={`Option balance pie for ${pieKind === "LIKERT" ? "Likert" : "Yes/No"}`} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                 <RechartsTooltip content={<BalanceTooltip />} wrapperStyle={{ outline: "none" }} />
-                <Legend wrapperStyle={{ fontSize: 14 }} />
+                <Legend
+                  iconSize={10}
+                  height={24}
+                  formatter={(value) => (
+                    <span
+                      style={{
+                        fontSize: "12px",        // tweak size
+                        fontWeight: 400,         // or "bold"
+                        color: "var(--card-foreground)", // use your theme variable
+                      }}
+                    >
+                      {value}
+                    </span>
+                  )}
+                />
+    
                 <Pie
                   data={pieData}
                   dataKey="value"

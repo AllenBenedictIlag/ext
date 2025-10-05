@@ -76,7 +76,7 @@ function YTick({
   const q = questions[idx];
   if (!q) return null;
   const dot = q.required ? "●" : "○";
-  const fill = q.required ? "var(--chart-1)" : "var(--muted-foreground)";
+  const fill = q.required ? "var(--chart-1)" : "var(--chart-6)";
   return (
     <g transform={`translate(${x - 6},${y})`}>
       <text
@@ -228,8 +228,8 @@ export default function CompletionMatrix() {
           col,
           z: CELL_PX,
           answered,
-          fill: answered ? "var(--chart-1)" : "var(--muted)",
-          fillOpacity: answered ? 0.95 : 0.22,
+          fill: answered ? "var(--chart-1)" : "var(--chart-6)",
+          fillOpacity: answered ? 0.95 : 0.50,
           stroke: "var(--border)",
         });
       }
@@ -243,7 +243,7 @@ export default function CompletionMatrix() {
   const empty = !loading && (!qs.length || !subs.length);
 
   return (
-    <Card className="md:col-span-8 h-120 rounded-xl border shadow-sm bg-card px-4">
+    <Card className="md:col-span-6 h-120 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Completion Matrix</CardTitle>
@@ -308,7 +308,7 @@ export default function CompletionMatrix() {
           <span>Answered</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--muted)" }} />
+          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--chart-6)", opacity: "0.50" }} />
           <span>Blank</span>
         </div>
         <div className="flex items-center gap-2">

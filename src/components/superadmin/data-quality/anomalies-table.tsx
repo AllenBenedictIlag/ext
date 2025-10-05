@@ -6,7 +6,12 @@
  * - Next.js App Router + shadcn/ui + Tailwind
  * - No fetching here; uses typed SAMPLE_DATA (≥ 12 rows)
  * - Sticky header, zebra rows, hover, tooltips, column toggles, search, sort, pagination
- * - Export CSV with AlertDialog (Cancel/Continue)
+ *
+ * Export changes:
+ *   (1) Range selector: Last 3 months / Last 30 days / Last 7 days / Follow the Custom Filter
+ *   (2) Confirmation: "Are you sure you want to export data for … ?"
+ *   - Since this dataset has no date column, presets behave like “Follow the Custom Filter”.
+ *   - Export covers the full filtered & sorted set (NOT just current page).
  */
 
 import * as React from "react";
@@ -271,7 +276,18 @@ function DataTable<T extends Record<string, unknown>>({
   const [visibility, setVisibility] = React.useState<Record<string, boolean>>(
     Object.fromEntries(columns.map((c) => [c.id, c.visible !== false]))
   );
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
+
+  // ----- Export flow (ADDED) -----
+  const [exportOpen, setExportOpen] = React.useState(false);   // Step 1: choose preset
+  const [confirmOpen, setConfirmOpen] = React.useState(false); // Step 2: confirm
+  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
+  const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
+  const PRESET_LABEL: Record<ExportPreset, string> = {
+    FOLLOW_FILTER: "Follow the Custom Filter",
+    LAST_7: "Last 7 days",
+    LAST_30: "Last 30 days",
+    LAST_90: "Last 3 months",
+  };
 
   const visibleColumns = React.useMemo(
     () => columns.filter((c) => visibility[c.id]),
@@ -339,15 +355,20 @@ function DataTable<T extends Record<string, unknown>>({
   const toggleCol = (id: string) =>
     setVisibility((v) => ({ ...v, [id]: !v[id] }));
 
-  const exportCSV = () => {
+  // ----- Export helpers (ADDED) -----
+  // This dataset has no date column, so presets are informational only.
+  function rowsForExport(): T[] {
+    return sorted; // full filtered + sorted (NOT paged)
+  }
+
+  function buildCSVFor(list: T[]): string {
     const headers = visibleColumns.map((c) => c.header);
-    const rows = pageRows.map((row) =>
+    const rows = list.map((row) =>
       visibleColumns.map((c) => {
         const raw = c.accessor(row);
         return raw == null ? "" : String(raw);
       })
     );
-
     const csv =
       [headers, ...rows]
         .map((r) =>
@@ -361,16 +382,27 @@ function DataTable<T extends Record<string, unknown>>({
             .join(",")
         )
         .join("\n") + "\n";
+    return csv;
+  }
 
+  function downloadCSV(filename: string, csv: string) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "");
     a.href = url;
-    a.download = `anomalies-visible-${ts}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }
+
+  function presetSlug(p: ExportPreset): string {
+    switch (p) {
+      case "LAST_7": return "last7d";
+      case "LAST_30": return "last30d";
+      case "LAST_90": return "last3mo";
+      default: return "custom";
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -435,13 +467,13 @@ function DataTable<T extends Record<string, unknown>>({
             </SelectContent>
           </Select>
 
-          {/* Confirm before CSV export */}
-          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          {/* Step 1: Range selection (ADDED) */}
+          <AlertDialog open={exportOpen} onOpenChange={setExportOpen}>
             <AlertDialogTrigger asChild>
               <Button
                 variant="default"
                 size="sm"
-                aria-label="Export visible rows to CSV"
+                aria-label="Export rows to CSV"
                 className="btn-halo btn-halo--emph"
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -450,14 +482,70 @@ function DataTable<T extends Record<string, unknown>>({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Export visible rows?</AlertDialogTitle>
+                <AlertDialogTitle>Export anomalies</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will export the currently visible (filtered &amp; sorted) rows on this page to CSV.
+                  Choose the time window to export. This dataset has no date column, so presets will export the current filtered &amp; sorted rows.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Export range</label>
+                <Select value={exportPreset} onValueChange={(v) => setExportPreset(v as any)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                    <SelectItem value="LAST_7">Last 7 days</SelectItem>
+                    <SelectItem value="LAST_30">Last 30 days</SelectItem>
+                    <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <AlertDialogFooter className="mt-2">
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    setExportOpen(false);
+                    setTimeout(() => setConfirmOpen(true), 10);
+                  }}
+                >
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Step 2: Confirmation (ADDED) */}
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm export</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to export data for{" "}
+                  <span className="font-medium">
+                    {({ FOLLOW_FILTER: "Follow the Custom Filter", LAST_7: "Last 7 days", LAST_30: "Last 30 days", LAST_90: "Last 3 months" } as const)[exportPreset]}
+                  </span>
+                  ?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={exportCSV}>Continue</AlertDialogAction>
+                <AlertDialogCancel>Back</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    const list = rowsForExport();
+                    const csv = buildCSVFor(list);
+                    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "");
+                    const slug =
+                      exportPreset === "LAST_7" ? "last7d" :
+                      exportPreset === "LAST_30" ? "last30d" :
+                      exportPreset === "LAST_90" ? "last3mo" : "custom";
+                    downloadCSV(`anomalies-${slug}-${ts}.csv`, csv);
+                  }}
+                >
+                  Yes, export
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -483,10 +571,13 @@ function DataTable<T extends Record<string, unknown>>({
                       )}
                     >
                       <button
-                        onClick={() => c.sortable && setSort((prev) => {
-                          if (!prev || prev.id !== c.id) return { id: c.id, dir: "desc" };
-                          return { id: c.id, dir: prev.dir === "desc" ? "asc" : "desc" };
-                        })}
+                        onClick={() =>
+                          c.sortable &&
+                          setSort((prev) => {
+                            if (!prev || prev.id !== c.id) return { id: c.id, dir: "desc" };
+                            return { id: c.id, dir: prev.dir === "desc" ? "asc" : "desc" };
+                          })
+                        }
                         className={cn(
                           "flex w-full items-center gap-1 text-left",
                           c.align === "right" && "justify-end",
@@ -571,10 +662,22 @@ function DataTable<T extends Record<string, unknown>>({
             Page <span className="font-medium text-foreground">{page}</span> of{" "}
             <span className="font-medium text-foreground">{Math.max(1, Math.ceil(total / pageSize))}</span>
           </span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(Math.max(1, Math.ceil(total / pageSize)), p + 1))} disabled={page === Math.max(1, Math.ceil(total / pageSize))} aria-label="Next page">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(Math.max(1, Math.ceil(total / pageSize)), p + 1))}
+            disabled={page === Math.max(1, Math.ceil(total / pageSize))}
+            aria-label="Next page"
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))} disabled={page === Math.max(1, Math.ceil(total / pageSize))} aria-label="Last page">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
+            disabled={page === Math.max(1, Math.ceil(total / pageSize))}
+            aria-label="Last page"
+          >
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

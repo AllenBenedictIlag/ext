@@ -4,7 +4,7 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { SiteHeader } from "@/components/sidebar/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import React from "react"
-import { ThemeProvider } from "@/components/theme-provider"   
+import { ThemeProvider } from "@/components/shared/theme-provider"   
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider

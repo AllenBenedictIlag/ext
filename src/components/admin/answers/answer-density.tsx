@@ -150,7 +150,7 @@ export default function AnswerDensity({
               aria-label="Histogram of answers per submission"
               margin={{ top: 12, right: 24, bottom: 10, left: 14 }}
             >
-              <CartesianGrid stroke="var(--muted)" />
+              <CartesianGrid stroke="var(--border)" />
               <XAxis
                 type="number"
                 dataKey="answers"

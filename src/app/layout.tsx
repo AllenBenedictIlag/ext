@@ -1,7 +1,7 @@
 // app/layout.tsx
 import type { Metadata } from "next"
 import "../styles/globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/shared/theme-provider"
 import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
 
