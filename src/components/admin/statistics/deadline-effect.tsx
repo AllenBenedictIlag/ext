@@ -143,7 +143,7 @@ export default function DeadlineEffect() {
               margin={{ top: 16, right: 20, bottom: 0, left: 12 }}
               barCategoryGap={20}
             >
-              <CartesianGrid stroke="var(--chart-cartesian)" />
+             
               <XAxis
                 dataKey="day"
                 tickFormatter={(d: number) => (d === 7 ? "Day 7 (expiry)" : `Day ${d}`)}
@@ -167,12 +167,14 @@ export default function DeadlineEffect() {
                 strokeDasharray="4 4"
                 label={{ value: "Expiry", position: "top", fill: "var(--muted-foreground)", fontSize: 12 }}
               />
-
+              <CartesianGrid stroke="var(--chart-cartesian)" />
               <Bar dataKey="share" name="Share of uses" radius={[6, 6, 0, 0]} isAnimationActive>
                 {data.map((entry, idx) => (
-                  <Cell key={`c-${idx}`} fill={entry.day === 7 ? "var(--chart-14)" : "var(--chart-1)"} />
+                  <Cell key={`c-${idx}`} fill={entry.day === 7 ? "var(--muted)" : "var(--chart-3)"} />
+                  
                 ))}
               </Bar>
+               
             </BarChart>
           </ResponsiveContainer>
         )}

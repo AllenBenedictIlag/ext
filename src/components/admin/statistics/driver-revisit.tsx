@@ -143,7 +143,7 @@ export default function DriverRevisit() {
   }, [data]);
 
   const colorFor = (gap: number | null) =>
-    (gap ?? 0) >= 0 ? "var(--color-chart-4)" : "var(--color-destructive)";
+    (gap ?? 0) >= 0 ? "var(--chart-3)" : "var(--chart-1)";
 
   // Typed label formatter for noImplicitAny
   type LabelFormatter = (value: number | null, entry: any, index: number) => string;

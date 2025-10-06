@@ -143,7 +143,7 @@ export default function TimeToUse() {
               <YAxis tick={{ fontSize: 11 }} width={46} tickLine={false} axisLine={false} />
               <CartesianGrid stroke="var(--chart-cartesian)" />
                 
-              <Bar dataKey="count" name="Used" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="count" name="Used" fill="var(--chart-3)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

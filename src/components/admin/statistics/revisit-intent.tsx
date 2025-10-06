@@ -167,7 +167,7 @@ export default function RevisitIntent() {
             <defs>
               <linearGradient id="revisitFill" x1="0" y1="0" x2="0" y2="1">
                 {/* Use fully-opaque (or near) stops */}
-                <stop offset="30%" stopColor={`var(--chart-1)`} stopOpacity={0.95} />
+                <stop offset="30%" stopColor={`var(--chart-3)`} stopOpacity={0.95} />
                 <stop offset="100%" stopColor={`var(--chart-2)`} stopOpacity={0.95} />
               </linearGradient>
             </defs>
@@ -200,7 +200,7 @@ export default function RevisitIntent() {
                 type="monotone"
                 dataKey="pct"
                 name="Revisit Yes %"
-                stroke={`var(--chart-1)`}
+                stroke={`var(--chart-3)`}
                 strokeWidth={2}
                 fill="url(#revisitFill)"
                 fillOpacity={1}            // ensure fully opaque fill

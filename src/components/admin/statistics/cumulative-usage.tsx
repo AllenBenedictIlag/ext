@@ -69,7 +69,7 @@ function CumulativeTooltip({ active, payload }: any) {
       <div className="mt-1 text-xs text-muted-foreground">Day 0 = same-day use; Day 7 = expiry day.</div>
       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums">
         <div className="flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--chart-1)" }} />
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--chart-3)" }} />
           <span><strong>{p.runningPct.toFixed(1)}%</strong> running</span>
         </div>
         <div className="text-right">{p.runningCount} used</div>
@@ -186,7 +186,7 @@ export default function CumulativeUsage() {
                 type="monotone"
                 dataKey="runningPct"
                 name="Running %"
-                stroke="var(--chart-1)"
+                stroke="var(--chart-3)"
                 strokeWidth={3}
                 dot={{ r: 3 }}
                 activeDot={{ r: 5 }}

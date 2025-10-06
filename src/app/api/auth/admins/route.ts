@@ -1,4 +1,4 @@
-//src\app\api\auth\admins\route.ts
+// src/app/api/auth/admins/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
@@ -124,8 +124,6 @@ export async function POST(req: Request) {
       return err("Email already exists", 409);
     }
 
-    // If your table STILL has a `name` column, this insert will populate it too.
-    // If you've already dropped `name`, use the variant shown below.
     const [result] = await pool.execute(
       `
       INSERT INTO admins (
@@ -161,7 +159,7 @@ export async function POST(req: Request) {
         email,
         role,
         status,
-        last_login_at,
+        NULL AS last_login_at, -- return null for brand-new accounts
         created_at,
         updated_at
       FROM admins

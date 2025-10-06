@@ -196,9 +196,9 @@ export default function CompositeSatisfaction() {
                 type="monotone"
                 dataKey="composite"
                 name="Composite"
-                stroke="var(--chart-1)"
+                stroke="var(--chart-3)"
                 strokeWidth={2}
-                dot={{ r: 3, stroke: "var(--chart-1)", fill: "var(--chart-1)" }}
+                dot={{ r: 3, stroke: "var(--chart-1)", fill: "var(--chart-3)" }}
                 activeDot={{ r: 5 }}
                 isAnimationActive
               />

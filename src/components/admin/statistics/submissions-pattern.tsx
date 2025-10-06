@@ -78,7 +78,7 @@ function HeatTooltip({ active, payload }: { active?: boolean; payload?: any[] })
         {DOW_LABELS[p.dow]} · {hourRangeLabel(p.hour)}
       </div>
       <div className="flex items-center gap-2">
-        <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--chart-1)", opacity: 1 }} />
+        <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--chart-3)", opacity: 1 }} />
         <span className="text-muted-foreground">Submissions:</span>
         <span>{p.count}</span>
       </div>
@@ -209,7 +209,7 @@ export default function SubmissionsPattern() {
                 cursor={{ fill: "var(--muted)" }}
               />
 
-              <Scatter data={dataCells} shape="square" name="Submissions" fill="var(--chart-1)">
+              <Scatter data={dataCells} shape="square" name="Submissions" fill="var(--chart-2)">
                 {dataCells.map((p, i) => (
                   <Cell key={i} fillOpacity={opacityFor(p.count)} />
                 ))}

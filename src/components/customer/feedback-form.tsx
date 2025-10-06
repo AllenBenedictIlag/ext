@@ -321,7 +321,7 @@ export default function FeedbackForm({
                   id={`text-${q.id}`}
                   placeholder="Type your answer here…"
                   rows={5}
-                  className="h-40 max-h-40 w-full resize-none overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
+                  className="h-40 max-h-40 w-full resize-none border-2 border- overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
                   style={{ overflowWrap: "anywhere" }}
                   value={data.answers[q.question_key] ?? ""}    // NEW: controlled
                   onChange={(e) => setAnswer(q.question_key, e.target.value)}
@@ -346,6 +346,7 @@ export default function FeedbackForm({
                   {q.prompt}
                 </Label>
                 <Input
+                className="border-2 border-"
                   key={`short-${q.id}`}                         // NEW
                   id={`short-${q.id}`}
                   type="text"
@@ -585,7 +586,7 @@ export default function FeedbackForm({
         <input type="hidden" name="code" value={data.code} />
 
         {/* Question card — consistent height */}
-        <Card key={`page-${current.key}`} className="w-full mx-auto mt-24 mb-10 border-muted shadow-2xl">
+        <Card key={`page-${current.key}`} className="w-full mx-auto mt-24 mb-10 border-muted shadow-2xl px-4">
           <div className="flex flex-col min-h-[250px]">
             <CardHeader className="shrink-0 pb-3">
               <CardTitle className="text-secondary-foreground text-base">

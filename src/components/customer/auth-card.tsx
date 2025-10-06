@@ -318,7 +318,7 @@ export function CustomerAuthCard() {
               type="button"
               variant="outline"
               className="min-w-[110px]"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/auth/customer")}
             >
               Cancel
             </Button>

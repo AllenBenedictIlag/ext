@@ -36,12 +36,12 @@ const DEFAULT_LABELS: Record<string, string> = {
   No: "No",
 };
 const DEFAULT_COLORS: Record<string, string> = {
-  "1": "var(--chart-3)",  // worst
-  "2": "var(--chart-4)",
-  "3": "var(--chart-5)",
-  "4": "var(--chart-6)",      // best
+  "1": "var(--chart-2)",  // worst
+  "2": "var(--chart-3)",
+  "3": "var(--chart-4)",
+  "4": "var(--chart-5)",      // best
   No: "var(--chart-1)",
-  Yes: "var(--chart-6)",
+  Yes: "var(--chart-5)",
 };
 
 /* ---------- Small utils (URL/localStorage) ---------- */

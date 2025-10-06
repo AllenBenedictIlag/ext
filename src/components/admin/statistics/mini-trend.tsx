@@ -214,7 +214,7 @@ export default function MiniTrendPerQuestion() {
                     <Line
                       type="monotone"
                       dataKey="positivePct"
-                      stroke="var(--chart-1)"
+                      stroke="var(--chart-3)"
                       strokeWidth={2}
                       dot={{ r: 2 }}
                       activeDot={{ r: 4 }}
