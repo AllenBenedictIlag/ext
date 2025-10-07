@@ -1,7 +1,8 @@
 // src/app/api/auth/admins/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 // ------- Zod Schemas -------
 const CreateAdminSchema = z.object({
@@ -29,7 +30,7 @@ function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const parsed = ListQuerySchema.parse({
@@ -108,7 +109,7 @@ export async function GET(req: Request) {
 }
 
 // ------- POST /api/auth/admins (create) -------
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const json = await req.json();
     const body = CreateAdminSchema.parse(json);
@@ -168,7 +169,18 @@ export async function POST(req: Request) {
       [insertedId]
     );
 
-    return ok({ data: Array.isArray(rows) ? rows[0] : null }, 201);
+    const createdAdmin = Array.isArray(rows) ? rows[0] : null;
+    const createdId = Number(insertedId) || 0;
+
+    await recordAuditEvent({
+      req,
+      action: "ROLE_CHANGE",
+      targetType: "admin",
+      targetId: createdId || body.email,
+      notes: `Created admin ${body.email} (role=${body.role}, status=${body.status})`,
+    });
+
+    return ok({ data: createdAdmin }, 201);
   } catch (e: any) {
     return err(e?.message ?? "Failed to create admin", 500);
   }

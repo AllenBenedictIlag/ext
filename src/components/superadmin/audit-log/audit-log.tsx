@@ -30,26 +30,10 @@ import {
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import type { AuditAction, AuditLogRecord, AuditLogResponse } from "@/types/audit-log";
 
 /* ---------- Types ---------- */
-export type AuditAction =
-  | "SIGN_IN"
-  | "DRAFT_EDIT"
-  | "SUBMIT_FOR_REVIEW"
-  | "PUBLISH"
-  | "ARCHIVE"
-  | "ROLE_CHANGE"
-  | "EXPORT";
-
-export type Row = {
-  time: string;              // ISO
-  actor: string;
-  action: AuditAction;
-  target: string;
-  notes: string;
-  ip?: string | null;
-  user_agent?: string | null;
-};
+type Row = AuditLogRecord;
 
 type ColumnDef<T> = {
   id: keyof T & string;
@@ -75,7 +59,7 @@ type DataTableProps<T extends Record<string, unknown>> = {
 
 /* ---------- Helpers ---------- */
 const formatDatePH = (iso: string | null): string => {
-  if (!iso) return "—";
+  if (!iso) return "";
   try {
     return new Intl.DateTimeFormat("en-PH", {
       timeZone: "Asia/Manila",
@@ -87,12 +71,15 @@ const formatDatePH = (iso: string | null): string => {
       hour12: true,
     }).format(new Date(iso));
   } catch {
-    return iso ?? "—";
+    return iso ?? "";
   }
 };
 
-const truncate = (text: string, max = 24): string =>
-  text.length > max ? text.slice(0, max - 1) + "…" : text;
+const truncate = (text: string, max = 24): string => {
+  if (text.length <= max) return text;
+  if (max <= 3) return text.slice(0, max);
+  return `${text.slice(0, max - 3)}...`;
+};
 
 const formatWords = (text: string): number =>
   text.trim().split(/\s+/).filter(Boolean).length;
@@ -186,7 +173,7 @@ const COLUMNS: ColumnDef<Row>[] = [
   {
     id: "ip",
     header: "IP",
-    accessor: r => r.ip ?? "—",
+    accessor: r => r.ip ?? "",
     formatter: v => <span className="whitespace-nowrap">{String(v)}</span>,
     width: "140px",
     sortable: true,
@@ -196,7 +183,7 @@ const COLUMNS: ColumnDef<Row>[] = [
   {
     id: "user_agent",
     header: "User Agent",
-    accessor: r => r.user_agent ?? "—",
+    accessor: r => r.user_agent ?? "",
     formatter: v => <EllipsizedWithTooltip text={String(v)} className="max-w-[360px]" />,
     width: "380px",
     sortable: false,
@@ -328,7 +315,7 @@ function DataTable<T extends Record<string, unknown>>({
     if (p === "FOLLOW_FILTER") return null;
     const today = phTodayYMD();
     const endMs = phEndOfDayUTCms(today);
-    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90; // 3 months ≈ 90 days
+    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90; // approx 3 months (90 days)
     const startDate = new Date(new Date(`${today}T00:00:00+08:00`).getTime());
     startDate.setDate(startDate.getDate() - (days - 1)); // inclusive
     const y = startDate.getFullYear();
@@ -420,7 +407,7 @@ function DataTable<T extends Record<string, unknown>>({
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             aria-label="Search audit log"
-            placeholder="Search actor, action, target, notes…"
+            placeholder="Search actor, action, target, notes"
             value={query}
             onChange={(e) => {
               setPage(1);
@@ -492,7 +479,7 @@ function DataTable<T extends Record<string, unknown>>({
               <AlertDialogHeader>
                 <AlertDialogTitle>Export audit log</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose the time window to export. “Follow the Custom Filter” uses the current table filter &amp; sort.
+                  Choose the time window to export. "Follow the Custom Filter" uses the current table filter &amp; sort.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
@@ -650,7 +637,7 @@ function DataTable<T extends Record<string, unknown>>({
         <div>
           Showing{" "}
           <span className="font-medium text-foreground">
-            {total === 0 ? 0 : start + 1}–{end}
+            {total === 0 ? 0 : start + 1}-{end}
           </span>{" "}
           of <span className="font-medium text-foreground">{total}</span>
         </div>
@@ -703,7 +690,7 @@ function useAuditLogData() {
           cache: "no-store",
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json: { data: Row[] } = await res.json();
+        const json: AuditLogResponse = await res.json();
         if (!alive) return;
         setRows(Array.isArray(json.data) ? json.data : []);
       } catch {
@@ -730,7 +717,7 @@ export default function AuditLog({ highlightRows = true }: AuditLogProps) {
       <CardHeader>
         <CardTitle className="tracking-normal">Audit Log</CardTitle>
         <CardDescription>
-          Who did what, and when. Use this for compliance and trust—e.g., see who archived a survey or exported data.
+          Who did what, and when. Use this for compliance and trust (for example, see who archived a survey or exported data).
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">

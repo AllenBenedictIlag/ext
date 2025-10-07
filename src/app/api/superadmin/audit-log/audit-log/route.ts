@@ -1,17 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
 import type { RowDataPacket } from "mysql2/promise";
+import type { AuditAction, AuditLogResponse } from "@/types/audit-log";
 
 /* ---------- Types ---------- */
-type AuditAction =
-  | "SIGN_IN"
-  | "DRAFT_EDIT"
-  | "SUBMIT_FOR_REVIEW"
-  | "PUBLISH"
-  | "ARCHIVE"
-  | "ROLE_CHANGE"
-  | "EXPORT";
-
 interface CountRow extends RowDataPacket {
   total: number;
 }
@@ -37,7 +29,7 @@ const SORT_MAP: Record<string, string> = {
   user_agent: "al.user_agent",
 };
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
   // pagination
@@ -109,7 +101,7 @@ export async function GET(req: Request) {
       [...params, limit, offset]
     );
 
-    return NextResponse.json({
+    const payload: AuditLogResponse = {
       data: rows.map((r) => ({
         time: new Date(r.time).toISOString(),
         actor: r.actor,
@@ -121,7 +113,9 @@ export async function GET(req: Request) {
       })),
       pagination: { total, limit, offset },
       meta: { sort: sortKey, dir, ...(q ? { q } : {}) },
-    });
+    };
+
+    return NextResponse.json(payload);
   } catch (err) {
     console.error("[audit-log] GET failed:", err);
     return NextResponse.json({ error: "Failed to load audit log." }, { status: 500 });

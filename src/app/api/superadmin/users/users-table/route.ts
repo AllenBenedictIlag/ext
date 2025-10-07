@@ -1,11 +1,7 @@
-// src/app/api/superadmin/users/users-table/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
+import { recordAuditEvent } from "@/lib/audit-log";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
-
-/* ===========================================
-   Types
-   =========================================== */
 
 type SortKey =
   | "admin_id"
@@ -18,7 +14,7 @@ type SortKey =
 
 const SORT_MAP: Record<SortKey, string> = {
   admin_id: "a.id",
-  name: "name", // alias from SELECT
+  name: "name",
   email: "a.email",
   role: "a.role",
   status: "a.status",
@@ -40,14 +36,13 @@ export interface UsersRow extends RowDataPacket {
   updated_at: string;
 }
 
-/* ---- Action bodies ---- */
 type InviteBody = {
   action: "invite";
   first_name: string;
   last_name: string;
   email: string;
   role?: "ADMIN" | "SUPER_ADMIN";
-  send_later?: boolean; // we don't send email here; just controls UI intent
+  send_later?: boolean;
 };
 
 type UpdateStatusBody = {
@@ -69,16 +64,12 @@ type ResetPasswordBody = {
 
 type PostBody = InviteBody | UpdateStatusBody | ChangeRoleBody | ResetPasswordBody;
 
-/* ===========================================
-   GET — table data only (no date filters)
-   =========================================== */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // Optional pagination/sorting/search
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const pageSize = Math.max(0, Number(searchParams.get("pageSize") ?? "0")); // 0 => unused
+    const pageSize = Math.max(0, Number(searchParams.get("pageSize") ?? "0"));
     const limitParam = Number(searchParams.get("limit") ?? "500");
     const offsetParam = Number(searchParams.get("offset") ?? "0");
 
@@ -102,13 +93,11 @@ export async function GET(req: Request) {
 
     const pool = getPool();
 
-    // total
     const totalSql = `SELECT COUNT(*) AS total FROM admins a ${where}`;
     const totalParams = hasQ ? [`%${q}%`, `%${q}%`, `%${q}%`] : [];
     const [totalRows] = await pool.query<TotalRow[]>(totalSql, totalParams);
     const total = totalRows[0]?.total ?? 0;
 
-    // rows
     const orderBy = SORT_MAP[sort];
     const rowsSql = `
       SELECT
@@ -145,16 +134,11 @@ export async function GET(req: Request) {
   }
 }
 
-/* ===========================================
-   POST — actions for Super Admin table
-   (no email sending; no extra security yet)
-   =========================================== */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as PostBody;
     const pool = getPool();
 
-    // util: fetch one row by id (for client refresh)
     const selectOne = async (id: number) => {
       const [r] = await pool.query<UsersRow[]>(
         `
@@ -170,7 +154,6 @@ export async function POST(req: Request) {
       return r[0] ?? null;
     };
 
-    // util: temp password (dev only, NOT secure)
     const makeTemp = () =>
       Math.random().toString(36).slice(2, 6) +
       "-" +
@@ -190,12 +173,20 @@ export async function POST(req: Request) {
           body.first_name,
           body.last_name,
           body.email,
-          // dev only: store as-is; no hashing yet
           temp,
           role,
         ]);
 
         const created = await selectOne(res.insertId);
+
+        await recordAuditEvent({
+          req,
+          action: "ROLE_CHANGE",
+          targetType: "admin",
+          targetId: res.insertId || body.email,
+          notes: `Invited admin ${body.email} (role=${role})`,
+        });
+
         return NextResponse.json(
           { ok: true, data: created, temp_password: temp },
           { status: 201 }
@@ -208,9 +199,19 @@ export async function POST(req: Request) {
           body.status,
           body.admin_id,
         ]);
-        if (res.affectedRows === 0)
+        if (res.affectedRows === 0) {
           return NextResponse.json({ ok: false }, { status: 404 });
+        }
         const row = await selectOne(body.admin_id);
+
+        await recordAuditEvent({
+          req,
+          action: "ROLE_CHANGE",
+          targetType: "admin",
+          targetId: body.admin_id,
+          notes: `Updated status for admin ${body.admin_id} -> ${body.status}`,
+        });
+
         return NextResponse.json({ ok: true, data: row }, { status: 200 });
       }
 
@@ -220,9 +221,19 @@ export async function POST(req: Request) {
           body.role,
           body.admin_id,
         ]);
-        if (res.affectedRows === 0)
+        if (res.affectedRows === 0) {
           return NextResponse.json({ ok: false }, { status: 404 });
+        }
         const row = await selectOne(body.admin_id);
+
+        await recordAuditEvent({
+          req,
+          action: "ROLE_CHANGE",
+          targetType: "admin",
+          targetId: body.admin_id,
+          notes: `Changed role for admin ${body.admin_id} -> ${body.role}`,
+        });
+
         return NextResponse.json({ ok: true, data: row }, { status: 200 });
       }
 
@@ -230,8 +241,18 @@ export async function POST(req: Request) {
         const temp = makeTemp();
         const sql = `UPDATE admins SET password = ? WHERE id = ?`;
         const [res] = await pool.query<ResultSetHeader>(sql, [temp, body.admin_id]);
-        if (res.affectedRows === 0)
+        if (res.affectedRows === 0) {
           return NextResponse.json({ ok: false }, { status: 404 });
+        }
+
+        await recordAuditEvent({
+          req,
+          action: "ROLE_CHANGE",
+          targetType: "admin",
+          targetId: body.admin_id,
+          notes: `Reset password for admin ${body.admin_id}`,
+        });
+
         return NextResponse.json(
           { ok: true, admin_id: body.admin_id, temp_password: temp },
           { status: 200 }
