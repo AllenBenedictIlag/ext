@@ -3,7 +3,6 @@
 
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { GlobalQuickFilter } from "@/components/shared/global-quick-filter";
 import { SectionCards } from "@/components/admin/dashboard/kpi-tiles";
 import FunnelCard from "@/components/admin/statistics/feedback-funnel";
 import TrendCard from "@/components/admin/statistics/monthly-trend";
@@ -34,7 +33,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <GlobalQuickFilter />
       <SectionCards/>
       
       <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
