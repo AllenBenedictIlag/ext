@@ -853,7 +853,7 @@ export default function QuestionsTable({
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card px-4 shadow-md">
       <CardHeader className="pb-3">
-        <CardTitle className="text-xl tracking-normal">Questions — Active Published Survey</CardTitle>
+        <CardTitle className="text-xl tracking-normal">Active Published Survey</CardTitle>
         {/* <CardDescription className="text-sm">
           It connects the exact wording of each question to its live stats. Use it
           to spot what’s slipping and track if fixes move scores in the next 30 days.

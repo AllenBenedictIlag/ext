@@ -2,7 +2,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import type { NavSection } from "@/lib/modules"
 import { ICONS } from "@/lib/modules"
 import {
@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useUnsavedChanges } from "@/components/providers/unsaved-changes-provider"
 
 type Props = {
   sections: NavSection[]
@@ -21,6 +22,8 @@ type Props = {
 
 export function NavMain({ sections, className }: Props) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { isDirty, confirmExit, markPristine } = useUnsavedChanges()
 
   
   return (
@@ -48,7 +51,19 @@ export function NavMain({ sections, className }: Props) {
                           : ""
                       }
                     >
-                      <Link href={item.url} aria-current={isActive ? "page" : undefined}>
+                      <Link
+                        href={item.url}
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={(event) => {
+                          if (!isDirty) return
+                          event.preventDefault()
+                          void confirmExit("navigate").then((ok) => {
+                            if (!ok) return
+                            markPristine()
+                            router.push(item.url)
+                          })
+                        }}
+                      >
                         {Icon ? <Icon /> : null}
                         <span>{item.title}</span>
                       </Link>

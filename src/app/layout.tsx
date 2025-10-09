@@ -4,6 +4,7 @@ import "../styles/globals.css"
 import { ThemeProvider } from "@/components/shared/theme-provider"
 import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
+import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider"
 
 export const metadata: Metadata = {
   title: "Coffee Crave",
@@ -29,10 +30,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <UnsavedChangesProvider>
+            {children}
 
-          {/* Sonner toaster – picks up light/dark from ThemeProvider */}
-          <Toaster richColors closeButton position="top-right" theme="system" />
+            {/* Sonner toaster - picks up light/dark from ThemeProvider */}
+            <Toaster richColors closeButton position="top-right" theme="system" />
+          </UnsavedChangesProvider>
         </ThemeProvider>
       </body>
     </html>
