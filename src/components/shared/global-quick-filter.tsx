@@ -30,6 +30,8 @@ type Props = {
   className?: string;
 };
 
+type PresetKey = "90d" | "30d" | "7d";
+
 /* ---------- Constants ---------- */
 const DEFAULT_STORAGE_KEY = "dashboard:filters";
 const TZ = "Asia/Manila";
@@ -96,6 +98,25 @@ function readInitial(sp: URLSearchParams, storageKey: string): DateRange {
   } catch {}
   const { from, to } = last30d();
   return { from, to };
+}
+
+const PRESET_BUILDERS: Record<PresetKey, () => { from: Date; to: Date }> = {
+  "90d": last3mo,
+  "30d": last30d,
+  "7d": last7d,
+};
+
+function findPresetMatch(range: DateRange | null): PresetKey | undefined {
+  if (!range?.from || !range?.to) return undefined;
+  const targetFrom = yyyymmdd(range.from);
+  const targetTo = yyyymmdd(range.to);
+  for (const key of Object.keys(PRESET_BUILDERS) as PresetKey[]) {
+    const preset = PRESET_BUILDERS[key]();
+    if (yyyymmdd(preset.from) === targetFrom && yyyymmdd(preset.to) === targetTo) {
+      return key;
+    }
+  }
+  return undefined;
 }
 
 /* ---------- Dual calendar ---------- */
@@ -202,27 +223,47 @@ export function GlobalQuickFilter({
   const searchParams = useSearchParams();
 
   // committed (filters + window preview)
-  const initCommitted = React.useMemo(() => readInitial(searchParams, storageKey), []); // eslint-disable-line
-  const [rangeCommitted, setRangeCommitted] = React.useState<DateRange>(initCommitted);
+  const [rangeCommitted, setRangeCommitted] = React.useState<DateRange | null>(null);
 
   // draft (only inside dropdown)
-  const [rangeDraft, setRangeDraft] = React.useState<DateRange>(initCommitted);
+  const [rangeDraft, setRangeDraft] = React.useState<DateRange | null>(null);
 
   // dropdown open
   const [open, setOpen] = React.useState(false);
 
   // preset vs custom
   const [mode, setMode] = React.useState<"preset" | "custom">("custom");
-  const [presetKey, setPresetKey] = React.useState<"90d" | "30d" | "7d" | undefined>(undefined);
+  const [presetKey, setPresetKey] = React.useState<PresetKey | undefined>(undefined);
 
   // label text mode
   const [labelMode, setLabelMode] = React.useState<"custom" | "range">("custom");
 
-  const committedFrom = rangeCommitted?.from ?? last30d().from;
-  const committedTo   = rangeCommitted?.to   ?? last30d().to;
+  React.useEffect(() => {
+    const initial = readInitial(searchParams, storageKey);
+    setRangeCommitted(initial);
+    setRangeDraft(initial);
 
-  const committedFromLabel = format(committedFrom, "LLL d, yyyy");
-  const committedToLabel   = format(committedTo,   "LLL d, yyyy");
+    const matchedPreset = findPresetMatch(initial);
+    if (matchedPreset) {
+      setMode("preset");
+      setPresetKey(matchedPreset);
+      setLabelMode("custom");
+    } else if (initial?.from && initial?.to) {
+      setMode("custom");
+      setPresetKey(undefined);
+      setLabelMode("range");
+    } else {
+      setMode("custom");
+      setPresetKey(undefined);
+      setLabelMode("custom");
+    }
+  }, [searchParams, storageKey]);
+
+  const committedFrom = rangeCommitted?.from ?? null;
+  const committedTo   = rangeCommitted?.to   ?? null;
+
+  const committedFromLabel = committedFrom ? format(committedFrom, "LLL d, yyyy") : "-";
+  const committedToLabel   = committedTo   ? format(committedTo,   "LLL d, yyyy") : "-";
 
   function apply(
     next: { from: Date; to: Date },
@@ -294,11 +335,13 @@ export function GlobalQuickFilter({
   }
 
   // Copy committed -> draft when opening dropdown
-  React.useEffect(() => { if (open) setRangeDraft(rangeCommitted); }, [open, rangeCommitted]);
+  React.useEffect(() => {
+    if (open) setRangeDraft(rangeCommitted ?? null);
+  }, [open, rangeCommitted]);
 
   const customButtonText =
-    labelMode === "range"
-      ? `${format(committedFrom, "LLL d")} – ${format(committedTo, "LLL d")}`
+    labelMode === "range" && committedFrom && committedTo
+      ? `${format(committedFrom, "LLL d")} - ${format(committedTo, "LLL d")}`
       : "Custom";
 
   const max = MAX_DATE();
@@ -320,7 +363,7 @@ export function GlobalQuickFilter({
       <div className="text-xs text-muted-foreground">
         <span className="inline-flex items-center rounded-md bg-muted px-3 py-1">
           Date Range:&nbsp;<strong className="ml-1">{committedFromLabel}</strong>
-          &nbsp;→&nbsp;<strong>{committedToLabel}</strong>
+          &nbsp;+&nbsp;<strong>{committedToLabel}</strong>
         </span>
       </div>
 
@@ -349,14 +392,15 @@ export function GlobalQuickFilter({
 
           <DropdownMenuContent className="w-auto p-0" align="end">
             <DualMonthCalendar
-              selected={rangeDraft}
+              key={rangeDraft?.from?.getTime() ?? MIN_DATE.getTime()}
+              selected={rangeDraft ?? undefined}
               onSelect={(r) => {
                 if (!r) return;
-                const nf = clampDate(r.from ?? rangeDraft.from ?? MIN_DATE, MIN_DATE, max);
-                const nt = clampDate(r.to   ?? r.from ?? rangeDraft.to ?? max, MIN_DATE, max);
+                const nf = clampDate(r.from ?? rangeDraft?.from ?? MIN_DATE, MIN_DATE, max);
+                const nt = clampDate(r.to   ?? r.from ?? rangeDraft?.to ?? max, MIN_DATE, max);
                 setRangeDraft({ from: nf, to: nt }); // draft only
               }}
-              initialLeftMonth={rangeDraft?.from ?? todayInManila()}
+              initialLeftMonth={rangeDraft?.from ?? MIN_DATE}
             />
             <div className="flex items-center justify-between gap-2 px-3 pb-3">
               <div className="text-xs text-muted-foreground">
@@ -369,7 +413,7 @@ export function GlobalQuickFilter({
                   size="sm"
                   onClick={() => {
                     // NEW: also flip UI back to “Custom” and clear preset highlight.
-                    setRangeDraft(rangeCommitted);
+                    setRangeDraft(rangeCommitted ?? null);
                     setLabelMode("custom");   // outside button shows "Custom"
                     setMode("custom");        // unselect ToggleGroup highlight
                     setPresetKey(undefined);
@@ -383,7 +427,7 @@ export function GlobalQuickFilter({
                   onClick={() => {
                     // close without applying changes
                     setOpen(false);
-                    setRangeDraft(rangeCommitted);
+                    setRangeDraft(rangeCommitted ?? null);
                   }}
                 >
                   Cancel
@@ -415,3 +459,5 @@ export function GlobalQuickFilter({
     </div>
   );
 }
+
+

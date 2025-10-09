@@ -1287,17 +1287,18 @@ function ScheduleButton({
   onConfirm: (effectiveLocalISO: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [when, setWhen] = React.useState<string>(() => {
-    // default: +1 hour local
-    const d = new Date(Date.now() + 60 * 60 * 1000);
+  const [when, setWhen] = React.useState<string>("");
+
+  React.useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, "0");
+    const d = new Date(Date.now() + 60 * 60 * 1000);
     const yyyy = d.getFullYear();
     const mm = pad(d.getMonth() + 1);
     const dd = pad(d.getDate());
     const hh = pad(d.getHours());
     const mi = pad(d.getMinutes());
-    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-  });
+    setWhen(`${yyyy}-${mm}-${dd}T${hh}:${mi}`);
+  }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Button

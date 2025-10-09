@@ -86,8 +86,10 @@ const COLOR_YES = "var(--chart-6)";
 const COLOR_NO = "var(--chart-1)";
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function OptionBalance() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [data, setData] = React.useState<ApiResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [view, setView] = React.useState<"STACKED" | "PIE">("STACKED");
@@ -106,9 +108,11 @@ export default function OptionBalance() {
     }
   }
 
-  // initial fetch
+  // initial fetch (after hydration to keep server/client markup aligned)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

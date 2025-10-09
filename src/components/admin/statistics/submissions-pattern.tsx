@@ -97,8 +97,10 @@ function makeOpacity(max: number) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function SubmissionsPattern() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [cells, setCells] = React.useState<ApiCell[] | null>(null);
   const [max, setMax] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(true);
@@ -127,9 +129,11 @@ export default function SubmissionsPattern() {
     }
   }
 
-  // initial fetch
+  // initial fetch (after hydration to avoid SSR/client drift)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

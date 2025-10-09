@@ -55,8 +55,10 @@ function CovTooltip({ active, payload }: any) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function RequiredCoverage() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [coverage, setCoverage] = React.useState<{ percent: number | null; full: number; total: number } | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -76,9 +78,11 @@ export default function RequiredCoverage() {
     }
   }
 
-  // initial fetch
+  // initial fetch (runs post-hydration to avoid SSR/client mismatch)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

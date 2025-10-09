@@ -66,6 +66,8 @@ function DensityTooltip({ active, payload, label }: any) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function AnswerDensity({
   height = "h-120",          // NEW
   cardClassName,             // NEW
@@ -73,7 +75,7 @@ export default function AnswerDensity({
   height?: string;           // NEW: e.g., "h-90"
   cardClassName?: string;    // NEW: e.g., "md:col-span-6"
 }) {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [data, setData] = React.useState<ApiResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -101,9 +103,11 @@ export default function AnswerDensity({
     }
   }
 
-  // initial fetch
+  // initial fetch (browser-only APIs run after mount)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

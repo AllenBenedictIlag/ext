@@ -84,8 +84,10 @@ function CumulativeTooltip({ active, payload }: any) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function CumulativeUsage() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [series, setSeries] = React.useState<ApiPoint[] | null>(null);
   const [denom, setDenom] = React.useState<{ issued: number; used: number } | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -105,9 +107,11 @@ export default function CumulativeUsage() {
     }
   }
 
-  // initial fetch
+  // initial fetch (after hydration to keep HTML stable)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

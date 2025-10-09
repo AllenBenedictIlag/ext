@@ -145,8 +145,10 @@ function HeatTooltip({
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function CompletionMatrix() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [questions, setQuestions] = React.useState<ApiQuestion[] | null>(null);
   const [submissions, setSubmissions] = React.useState<ApiSubmission[] | null>(null);
   const [answeredPairs, setAnsweredPairs] = React.useState<Array<[number, number]> | null>(null);
@@ -176,9 +178,11 @@ export default function CompletionMatrix() {
     }
   }
 
-  // initial fetch
+  // initial fetch (after hydration to keep SSR/client markup consistent)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

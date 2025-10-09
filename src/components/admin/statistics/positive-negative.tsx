@@ -64,7 +64,7 @@ const C_NEG_YN  = "var(--chart-5)";
 
 /** ---------- Component ---------- */
 export default function PositiveNegative() {
-  const [period, setPeriod] = React.useState<Period>(() => readPeriodFromURL());
+  const [period, setPeriod] = React.useState<Period>(null);
   const [data, setData] = React.useState<ApiResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -98,7 +98,7 @@ export default function PositiveNegative() {
     }
   }, []);
 
-  // initial load
+  // initial load (runs post-hydration so window/localStorage are safe)
   React.useEffect(() => {
     const p = readPeriodFromURL();
     setPeriod(p);

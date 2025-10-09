@@ -67,8 +67,10 @@ function DeadlineTooltip({ active, payload, label }: any) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function DeadlineEffect() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [bins, setBins] = React.useState<ApiBin[] | null>(null);
   const [totals, setTotals] = React.useState<{ issued: number; usedWithin7d: number } | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -90,9 +92,11 @@ export default function DeadlineEffect() {
     }
   }
 
-  // initial fetch
+  // initial fetch (after mount to avoid SSR-only markup drift)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

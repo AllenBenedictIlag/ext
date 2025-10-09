@@ -76,8 +76,10 @@ function HistogramTooltip({ active, payload }: any) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function TimeToUse() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [bins, setBins] = React.useState<Bin[] | null>(null);
   const [total, setTotal] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(true);
@@ -98,8 +100,13 @@ export default function TimeToUse() {
     }
   }
 
-  // initial fetch
-  React.useEffect(() => { fetchData(range); /* eslint-disable-next-line */ }, []);
+  // initial fetch (after hydration for SSR/CSR parity)
+  React.useEffect(() => {
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // subscribe to GlobalQuickFilter
   React.useEffect(() => {

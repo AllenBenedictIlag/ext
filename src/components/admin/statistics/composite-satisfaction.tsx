@@ -75,8 +75,10 @@ function TrendTooltip({ active, payload }: any) {
 }
 
 /* ---------- Component ---------- */
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function CompositeSatisfaction() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [series, setSeries] = React.useState<ApiPoint[] | null>(null);
   const [cadence, setCadence] = React.useState<{ tickEveryDays: number; labelEveryDays: number } | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -99,9 +101,11 @@ export default function CompositeSatisfaction() {
     }
   }
 
-  // initial fetch
+  // initial fetch (browser-only APIs run after hydration)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

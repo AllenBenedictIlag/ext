@@ -793,12 +793,14 @@ type ApiResponse = {
   rows: Row[];
 };
 
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function QuestionsTable({
   highlightRows = true,
 }: QuestionsTableProps) {
   // 1) Range state
   const [range, setRange] = React.useState<{ from: string; to: string }>(
-    getInitialRange
+    DEFAULT_RANGE
   );
 
   // 2) Data state
@@ -822,9 +824,11 @@ export default function QuestionsTable({
     }
   }
 
-  // 4) Initial fetch
+  // 4) Initial fetch (run after hydration so we can touch browser APIs)
   React.useEffect(() => {
-    fetchData(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchData(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

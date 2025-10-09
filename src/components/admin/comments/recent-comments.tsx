@@ -318,7 +318,7 @@ const COLUMN_DEFS: Column[] = [
   { id: "comment_id", header: "Comment ID", width: "9rem", sortable: true, sortValue: (r) => r.comment_id },
   {
     id: "submitted_at",
-    header: "Submitted (PH)",
+    header: "Submitted",
     width: "14rem",
     sortable: true,
     sortValue: (r) => new Date(r.submitted_at).getTime(),
@@ -761,8 +761,10 @@ function DataTable(props: {
 /* Main component with dialog                                                 */
 /* ========================================================================== */
 
+const DEFAULT_RANGE = { from: "", to: "" };
+
 export default function RecentComments() {
-  const [range, setRange] = React.useState(getInitialRange);
+  const [range, setRange] = React.useState(DEFAULT_RANGE);
   const [serverRows, setServerRows] = React.useState<Row[] | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
 
@@ -819,9 +821,11 @@ export default function RecentComments() {
     }
   }
 
-  // initial fetch
+  // initial fetch (after mount so browser-only APIs are safe)
   React.useEffect(() => {
-    fetchList(range);
+    const initial = getInitialRange();
+    setRange(initial);
+    fetchList(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
