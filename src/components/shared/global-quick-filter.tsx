@@ -9,11 +9,12 @@ import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { IconChevronDown, IconRefresh } from "@tabler/icons-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 
 /* ---------- Types ---------- */
@@ -30,7 +31,7 @@ type Props = {
   className?: string;
 };
 
-type PresetKey = "90d" | "30d" | "7d";
+type PresetKey = "7d" | "30d" | "3mo" | "12mo";
 
 /* ---------- Constants ---------- */
 const DEFAULT_STORAGE_KEY = "dashboard:filters";
@@ -76,6 +77,7 @@ function lastNDays(n: number) {
 function last30d() { return lastNDays(30); }
 function last7d()  { return lastNDays(7);  }
 function last3mo() { const to = MAX_DATE(); const from = clampDate(addMonths(to, -3), MIN_DATE, to); return { from, to }; }
+function last12mo() { const to = MAX_DATE(); const from = clampDate(addMonths(to, -12), MIN_DATE, to); return { from, to }; }
 function parseUrlDate(s: string | null): Date | null {
   if (!s) return null;
   const [y, m, d] = s.split("-").map((x) => parseInt(x, 10));
@@ -101,10 +103,18 @@ function readInitial(sp: URLSearchParams, storageKey: string): DateRange {
 }
 
 const PRESET_BUILDERS: Record<PresetKey, () => { from: Date; to: Date }> = {
-  "90d": last3mo,
-  "30d": last30d,
   "7d": last7d,
+  "30d": last30d,
+  "3mo": last3mo,
+  "12mo": last12mo,
 };
+
+const PRESET_OPTIONS: { key: PresetKey; label: string }[] = [
+  { key: "7d", label: "Last 7 days" },
+  { key: "30d", label: "Last 30 days" },
+  { key: "3mo", label: "Last 3 months" },
+  { key: "12mo", label: "Last 12 months" },
+];
 
 function findPresetMatch(range: DateRange | null): PresetKey | undefined {
   if (!range?.from || !range?.to) return undefined;
@@ -314,16 +324,14 @@ export function GlobalQuickFilter({
   }
 
   function setQuick(value: string) {
-    let next;
-    if (value === "90d") next = last3mo();
-    else if (value === "30d") next = last30d();
-    else if (value === "7d")  next = last7d();
-    else return;
+    if (!value) return;
+    const builder = PRESET_BUILDERS[value as PresetKey];
+    if (!builder) return;
 
-    setPresetKey(value as "90d" | "30d" | "7d");
+    setPresetKey(value as PresetKey);
     setMode("preset");
     setLabelMode("custom"); // preset = show "Custom"
-    apply(next, { source: "preset" });
+    apply(builder(), { source: "preset" });
   }
 
   function reset() {
@@ -346,8 +354,10 @@ export function GlobalQuickFilter({
 
   const max = MAX_DATE();
 
-  // Radix/our ToggleGroup: use empty string "" to mean “no selection”.
-  const groupValue: string = mode === "preset" && presetKey ? presetKey : "";
+  const quickButtonText =
+    mode === "preset" && presetKey
+      ? PRESET_OPTIONS.find((o) => o.key === presetKey)?.label ?? "Quick range"
+      : "Quick range";
 
   return (
     <div
@@ -369,17 +379,29 @@ export function GlobalQuickFilter({
 
       {/* Controls */}
       <div className="ml-auto flex items-center gap-2">
-        <ToggleGroup
-          type="single"
-          value={groupValue}
-          onValueChange={setQuick}
-          variant="outline"
-          className="flex flex-wrap gap-0 rounded-xl border bg-card shadow-sm"
-        >
-          <ToggleGroupItem className="px-4" value="90d">Last 3 months</ToggleGroupItem>
-          <ToggleGroupItem className="px-4" value="30d">Last 30 days</ToggleGroupItem>
-          <ToggleGroupItem className="px-4" value="7d">Last 7 days</ToggleGroupItem>
-        </ToggleGroup>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="min-w-[172px] justify-between">
+              <span className="truncate">{quickButtonText}</span>
+              <IconChevronDown className="h-4 w-4 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[220px]">
+            <DropdownMenuRadioGroup
+              value={mode === "preset" && presetKey ? presetKey : ""}
+              onValueChange={(value) => {
+                if (!value) return;
+                setQuick(value);
+              }}
+            >
+              {PRESET_OPTIONS.map((option) => (
+                <DropdownMenuRadioItem key={option.key} value={option.key}>
+                  {option.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Custom dropdown */}
         <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -415,7 +437,7 @@ export function GlobalQuickFilter({
                     // NEW: also flip UI back to “Custom” and clear preset highlight.
                     setRangeDraft(rangeCommitted ?? null);
                     setLabelMode("custom");   // outside button shows "Custom"
-                    setMode("custom");        // unselect ToggleGroup highlight
+                    setMode("custom");        // clear quick-range selection
                     setPresetKey(undefined);
                   }}
                 >
@@ -440,7 +462,7 @@ export function GlobalQuickFilter({
                         from: rangeDraft?.from ?? last30d().from,
                         to: rangeDraft?.to ?? last30d().to,
                       },
-                      { source: "dropdown" } // ensures ToggleGroup clears & label shows range
+                      { source: "dropdown" } // ensures quick-range select clears & label shows range
                     )
                   }
                 >
