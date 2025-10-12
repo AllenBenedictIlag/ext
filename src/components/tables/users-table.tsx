@@ -42,10 +42,6 @@ import {
 
 import {
   ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Columns3,
   Download,
   MoreHorizontal,
@@ -79,7 +75,6 @@ const LA = {
             "fixed inset-0 z-50 bg-background/70 backdrop-blur-sm",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-            // IMPORTANT: don't intercept clicks while closing
             "data-[state=closed]:pointer-events-none"
           )}
         />
@@ -120,7 +115,6 @@ const LD = {
             modal ? "bg-background/70 backdrop-blur-sm" : "bg-transparent",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-            // IMPORTANT: don't intercept clicks while closing
             "data-[state=closed]:pointer-events-none"
           )}
         />
@@ -176,7 +170,11 @@ type DataTableProps<T extends Record<string, unknown>> = {
   searchKeys?: (keyof T & string)[];
   getRowKey?: (row: T, absoluteIndex: number) => React.Key;
   rightActions?: React.ReactNode;
-  renderExportConfirm?: (opts: { open: boolean; setOpen: (v: boolean) => void; onConfirm: () => void }) => React.ReactNode;
+  renderExportConfirm?: (opts: {
+    open: boolean;
+    setOpen: (v: boolean) => void;
+    onConfirm: () => void;
+  }) => React.ReactNode;
   /** Per-row actions rendered into the last cell */
   renderActions?: (row: T) => React.ReactNode;
 };
@@ -211,9 +209,8 @@ function getCell<T extends Record<string, unknown>, K extends keyof T & string>(
   id: K
 ): unknown {
   const col = cols.find((c) => c.id === id);
-  return col ? col.accessor(row) : undefined; // <-- use `col`, not `c`
+  return col ? col.accessor(row) : undefined;
 }
-
 
 function EllipsizedWithTooltip({
   text,
@@ -288,7 +285,8 @@ function InviteDialog({
             Invite a new admin
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="text-sm text-muted-foreground">
-            Creates a user with a temporary password (shown after creation). You can send an email later.
+            Creates a user with a temporary password (shown after creation). You
+            can send an email later.
           </DialogPrimitive.Description>
         </div>
 
@@ -345,7 +343,7 @@ function InviteDialog({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  DATATABLE                                                                 */
+/*  DATATABLE (SCROLL-ONLY, NO PAGINATION)                                    */
 /* -------------------------------------------------------------------------- */
 
 function DataTable<T extends Record<string, unknown>>({
@@ -360,13 +358,10 @@ function DataTable<T extends Record<string, unknown>>({
   renderActions,
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState<string>("");
-  const [pageSize, setPageSize] = React.useState<number>(10);
-  const [page, setPage] = React.useState<number>(1);
   const [sort, setSort] = React.useState<SortState<T> | undefined>(defaultSort);
   const [visibility, setVisibility] = React.useState<Record<string, boolean>>(
     Object.fromEntries(columns.map((c) => [c.id, c.visible !== false]))
   );
-
   const [exportOpen, setExportOpen] = React.useState(false);
 
   const visibleColumns = React.useMemo(
@@ -417,25 +412,6 @@ function DataTable<T extends Record<string, unknown>>({
     return clone;
   }, [filtered, sort, columns]);
 
-  const total = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  React.useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [totalPages, page]);
-
-  const start = (page - 1) * pageSize;
-  const end = Math.min(start + pageSize, total);
-  const pageRows = sorted.slice(start, end);
-
-  const onHeaderClick = (c: ColumnDef<T>) => {
-    if (!c.sortable) return;
-    setPage(1);
-    setSort((prev) => {
-      if (!prev || prev.id !== c.id) return { id: c.id, dir: "desc" };
-      return { id: c.id, dir: prev.dir === "desc" ? "asc" : "desc" };
-    });
-  };
-
   const toggleCol = (id: string) =>
     setVisibility((v) => ({ ...v, [id]: !v[id] }));
 
@@ -460,7 +436,7 @@ function DataTable<T extends Record<string, unknown>>({
 
   const doExport = async () => {
     const headers = visibleColumns.map((c) => c.header);
-    const rows = pageRows.map((row) =>
+    const rows = sorted.map((row) =>
       visibleColumns.map((c) => {
         const raw = c.accessor(row);
         if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
@@ -497,15 +473,15 @@ function DataTable<T extends Record<string, unknown>>({
     void logExport({
       resource: "users",
       format: "csv",
-      rowCount: pageRows.length,
-      columns: visibleColumns.map((c) => String(c.id)), // instead of just c.id
+      rowCount: sorted.length,
+      columns: visibleColumns.map((c) => String(c.id)),
       query,
     });
   };
 
   return (
     <div className="space-y-3">
-      {/* Controls */}
+      {/* Controls (no pagination or page-size) */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-[360px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -513,10 +489,7 @@ function DataTable<T extends Record<string, unknown>>({
             aria-label="Search users"
             placeholder="Search name, email, role, status…"
             value={query}
-            onChange={(e) => {
-              setPage(1);
-              setQuery(e.target.value);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             className="pl-8"
           />
         </div>
@@ -539,7 +512,9 @@ function DataTable<T extends Record<string, unknown>>({
                   key={c.id}
                   className="capitalize"
                   checked={!!visibility[c.id]}
-                  onCheckedChange={() => c.toggleable !== false && toggleCol(c.id)}
+                  onCheckedChange={() =>
+                    c.toggleable !== false && toggleCol(c.id)
+                  }
                   disabled={c.toggleable === false}
                 >
                   {c.header}
@@ -548,27 +523,7 @@ function DataTable<T extends Record<string, unknown>>({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => {
-              const next = Number(v);
-              setPageSize(next);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[110px]" aria-label="Rows per page">
-              <SelectValue placeholder="Page size" />
-            </SelectTrigger>
-            <SelectContent>
-              {[10, 25, 50, 100].map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}/page
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Export CSV confirm (uses light overlay) */}
+          {/* Export CSV confirm (light overlay) */}
           <Button
             variant="default"
             size="sm"
@@ -591,7 +546,7 @@ function DataTable<T extends Record<string, unknown>>({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table (scroll-only) */}
       <div className="rounded-md border overflow-hidden">
         <div className="max-h-[600px] overflow-auto">
           <Table className="table-fixed">
@@ -610,7 +565,18 @@ function DataTable<T extends Record<string, unknown>>({
                       )}
                     >
                       <button
-                        onClick={() => onHeaderClick(c)}
+                        onClick={() =>
+                          c.sortable &&
+                          setSort((prev) => {
+                            if (!prev || prev.id !== c.id) {
+                              return { id: c.id, dir: "desc" };
+                            }
+                            return {
+                              id: c.id,
+                              dir: prev.dir === "desc" ? "asc" : "desc",
+                            };
+                          })
+                        }
                         className={cn(
                           "flex w-full items-center gap-1 text-left",
                           c.align === "right" && "justify-end",
@@ -620,7 +586,9 @@ function DataTable<T extends Record<string, unknown>>({
                         aria-label={`Sort by ${c.header}`}
                       >
                         <span>{c.header}</span>
-                        {c.sortable && <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />}
+                        {c.sortable && (
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />
+                        )}
                       </button>
                     </TableHead>
                   ))}
@@ -629,11 +597,8 @@ function DataTable<T extends Record<string, unknown>>({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageRows.map((row, i) => {
-                const absoluteIndex = start + i;
-                const key: React.Key = getRowKey
-                  ? getRowKey(row, absoluteIndex)
-                  : String(absoluteIndex);
+              {sorted.map((row, i) => {
+                const key: React.Key = getRowKey ? getRowKey(row, i) : String(i);
                 return (
                   <TableRow
                     key={key}
@@ -685,59 +650,6 @@ function DataTable<T extends Record<string, unknown>>({
               })}
             </TableBody>
           </Table>
-        </div>
-      </div>
-
-      {/* Pagination footer */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <div>
-          Showing{" "}
-          <span className="font-medium text-foreground">
-            {total === 0 ? 0 : start + 1}–{end}
-          </span>{" "}
-          of <span className="font-medium text-foreground">{total}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(1)}
-            disabled={page === 1}
-            aria-label="First page"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="px-2">
-            Page <span className="font-medium text-foreground">{page}</span> of{" "}
-            <span className="font-medium text-foreground">{totalPages}</span>
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            aria-label="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(totalPages)}
-            disabled={page === totalPages}
-            aria-label="Last page"
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>
@@ -857,9 +769,12 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card shadow-sm px-4">
       <CardHeader>
-        <CardTitle className="tracking-normal">Users &amp; Roles (Super Admin)</CardTitle>
+        <CardTitle className="tracking-normal">
+          Users &amp; Roles (Super Admin)
+        </CardTitle>
         <CardDescription>
-          Manage who can access Admin and Super Admin functions. Invite users, change roles, revoke access, and control status.
+          Manage who can access Admin and Super Admin functions. Invite users,
+          change roles, revoke access, and control status.
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">
@@ -881,7 +796,10 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                 header: "Name",
                 accessor: (r) => r.name,
                 formatter: (v) => (
-                  <EllipsizedWithTooltip text={String(v)} className="max-w-[220px]" />
+                  <EllipsizedWithTooltip
+                    text={String(v)}
+                    className="max-w-[220px]"
+                  />
                 ),
                 width: "240px",
                 sortable: true,
@@ -893,7 +811,10 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                 header: "Email",
                 accessor: (r) => r.email,
                 formatter: (v) => (
-                  <EllipsizedWithTooltip text={String(v)} className="max-w-[260px]" />
+                  <EllipsizedWithTooltip
+                    text={String(v)}
+                    className="max-w-[260px]"
+                  />
                 ),
                 width: "280px",
                 sortable: true,
@@ -939,7 +860,11 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                       ? "border-destructive text-destructive"
                       : "text-muted-foreground border-muted-foreground";
                   const label =
-                    s === "ACTIVE" ? "Active" : s === "SUSPENDED" ? "Suspended" : "Inactive";
+                    s === "ACTIVE"
+                      ? "Active"
+                      : s === "SUSPENDED"
+                      ? "Suspended"
+                      : "Inactive";
                   return (
                     <Badge variant="outline" className={cn("px-2", cls)}>
                       {label}
@@ -957,7 +882,9 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                 header: "Created (PH)",
                 accessor: (r) => r.created_at,
                 formatter: (v) => (
-                  <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
+                  <span className="whitespace-nowrap">
+                    {formatDatePH(String(v))}
+                  </span>
                 ),
                 width: "200px",
                 sortable: true,
@@ -969,7 +896,9 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                 header: "Updated (PH)",
                 accessor: (r) => r.updated_at,
                 formatter: (v) => (
-                  <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
+                  <span className="whitespace-nowrap">
+                    {formatDatePH(String(v))}
+                  </span>
                 ),
                 width: "200px",
                 sortable: true,
@@ -1015,7 +944,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                             Export visible rows?
                           </LA.Title>
                           <LA.Description className="text-sm text-muted-foreground">
-                            This will export the currently visible (filtered &amp; sorted) rows on this page to CSV.
+                            This will export the currently visible (filtered &amp; sorted) rows in the table to CSV.
                           </LA.Description>
                         </div>
                         <div className="mt-4 flex items-center justify-end gap-2">
@@ -1023,7 +952,10 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                             <Button variant="outline">Cancel</Button>
                           </LA.Cancel>
                           <LA.Action asChild>
-                            <Button onClick={onConfirm} className="btn-halo btn-halo--emph">
+                            <Button
+                              onClick={onConfirm}
+                              className="btn-halo btn-halo--emph"
+                            >
                               Continue
                             </Button>
                           </LA.Action>
@@ -1050,7 +982,11 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({ kind: "role", row: r, next: "SUPER_ADMIN" })
+                            setConfirm({
+                              kind: "role",
+                              row: r,
+                              next: "SUPER_ADMIN",
+                            })
                           )}
                         >
                           Set role: Super Admin
@@ -1058,21 +994,33 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({ kind: "status", row: r, next: "ACTIVE" })
+                            setConfirm({
+                              kind: "status",
+                              row: r,
+                              next: "ACTIVE",
+                            })
                           )}
                         >
                           Mark Active
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({ kind: "status", row: r, next: "INACTIVE" })
+                            setConfirm({
+                              kind: "status",
+                              row: r,
+                              next: "INACTIVE",
+                            })
                           )}
                         >
                           Mark Inactive
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({ kind: "status", row: r, next: "SUSPENDED" })
+                            setConfirm({
+                              kind: "status",
+                              row: r,
+                              next: "SUSPENDED",
+                            })
                           )}
                         >
                           Mark Suspended
@@ -1113,11 +1061,17 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                   <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
                     <div className="space-y-2">
                       <LA.Title className="text-lg font-semibold">
-                        {confirm.kind === "status" && `Change status to ${confirm.next}`}
+                        {confirm.kind === "status" &&
+                          `Change status to ${confirm.next}`}
                         {confirm.kind === "role" &&
-                          `Change role to ${confirm.next === "SUPER_ADMIN" ? "Super Admin" : "Admin"}`}
+                          `Change role to ${
+                            confirm.next === "SUPER_ADMIN"
+                              ? "Super Admin"
+                              : "Admin"
+                          }`}
                         {confirm.kind === "reset" && `Reset password`}
-                        {confirm.kind === "revoke" && `Revoke access (suspend + logout)`}
+                        {confirm.kind === "revoke" &&
+                          `Revoke access (suspend + logout)`}
                       </LA.Title>
                       <LA.Description className="text-sm text-muted-foreground">
                         {confirm.kind === "reset"

@@ -25,7 +25,9 @@ export default function FeedbackAuthForm() {
             <header className="m-5 space-y-3 pt-4">
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  <span className="font-extrabold">Coffee Crave </span> - Your Opinion Matters
+                  <span className="font-extrabold">Coffee </span>
+                  <span className="font-extrabold text-[var(--chart-3)]">Crave</span>
+                  <span> – Your Opinion Matters</span>
                 </h1>
                 <p className="mt-2 text-sm text-muted-foreground text-justify">
                   With your suggestions, we can improve the Coffee Crave experience. Please be

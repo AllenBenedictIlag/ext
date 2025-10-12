@@ -303,8 +303,10 @@ export default function FeedbackForm({
                       selected={data.answers[q.question_key] === o.option_value}
                       onClick={() => setAnswer(q.question_key, o.option_value)}
                     />
+                    
                   );
                 })}
+                
               </div>
             ),
           });
@@ -326,7 +328,7 @@ export default function FeedbackForm({
                   id={`text-${q.id}`}
                   placeholder="Type your answer here…"
                   rows={5}
-                  className="h-40 max-h-40 w-full resize-none border-2 border- overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
+                  className="h-30 max-h-30 w-full resize-none border-2 border- overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
                   style={{ overflowWrap: "anywhere" }}
                   value={data.answers[q.question_key] ?? ""} // NEW: controlled
                   onChange={(e) => setAnswer(q.question_key, e.target.value)}
