@@ -148,11 +148,11 @@ export default function AnswerDensity({
         ) : empty ? (
           <div className="w-full text-center text-sm text-muted-foreground">— No data —</div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="90%" height="90%">
             <ComposedChart
               data={bins}
               aria-label="Histogram of answers per submission"
-              margin={{ top: 12, right: 24, bottom: 10, left: 14 }}
+              margin={{ top: 16, right: 24, bottom: 10, left: 14 }}
             >
               <CartesianGrid stroke="var(--border)" />
               <XAxis

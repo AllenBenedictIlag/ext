@@ -136,10 +136,10 @@ export default function OptionBalance() {
 
   /* ---------- Build chart datasets ---------- */
   const likert = data?.likert ?? [
-    { key: "1", label: "1 — Extremely Dissatisfied", count: 0, pct: 0 },
-    { key: "2", label: "2 — Dissatisfied",            count: 0, pct: 0 },
-    { key: "3", label: "3 — Satisfied",               count: 0, pct: 0 },
-    { key: "4", label: "4 — Extremely Satisfied",     count: 0, pct: 0 },
+    { key: "1", label: "Extremely Dissatisfied", count: 0, pct: 0 },
+    { key: "2", label: "Dissatisfied",            count: 0, pct: 0 },
+    { key: "3", label: "Satisfied",               count: 0, pct: 0 },
+    { key: "4", label: "Extremely Satisfied",     count: 0, pct: 0 },
   ];
   const yesno = data?.yesno ?? [
     { key: "yes", label: "Yes", count: 0, pct: 0 },
@@ -234,10 +234,10 @@ export default function OptionBalance() {
                 />
 
                 {/* Likert slices */}
-                <Bar dataKey="o1" name="1 — Extremely Dissatisfied" stackId="LIKERT" fill={COLOR_L1} />
-                <Bar dataKey="o2" name="2 — Dissatisfied"            stackId="LIKERT" fill={COLOR_L2} />
-                <Bar dataKey="o3" name="3 — Satisfied"               stackId="LIKERT" fill={COLOR_L3} />
-                <Bar dataKey="o4" name="4 — Extremely Satisfied"     stackId="LIKERT" fill={COLOR_L4} />
+                <Bar dataKey="o1" name="Extremely Dissatisfied" stackId="LIKERT" fill={COLOR_L1} />
+                <Bar dataKey="o2" name="Dissatisfied"            stackId="LIKERT" fill={COLOR_L2} />
+                <Bar dataKey="o3" name="Satisfied"               stackId="LIKERT" fill={COLOR_L3} />
+                <Bar dataKey="o4" name="Extremely Satisfied"     stackId="LIKERT" fill={COLOR_L4} />
 
                 {/* Yes/No slices */}
                 <Bar dataKey="yes" name="Yes" stackId="YESNO" fill={COLOR_YES} />

@@ -186,8 +186,8 @@ export default function CommentVolume() {
                 name="Comments"
                 stroke="var(--chart-3)"
                 strokeWidth={2}
-                dot={{ r: 3, stroke: "var(--chart-1)", fill: "var(--chart-1)" }}
-                activeDot={{ r: 5 }}
+                dot={{ r: 0, stroke: "var(--chart-1)", fill: "var(--chart-1)" }}
+                activeDot={{ r: 0 }}
                 isAnimationActive
               />
             </LineChart>

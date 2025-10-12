@@ -46,11 +46,11 @@ export function SiteHeader() {
   const title = React.useMemo(() => resolveTitle(pathname), [pathname])
   const hideQuickFilter = React.useMemo(() => {
     if (!pathname) return false
-    return pathname.startsWith("/admin/settings") || pathname.startsWith("/superadmin/settings")
+    return pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/questions") || pathname.startsWith("/superadmin/settings") 
   }, [pathname])
 
   return (
-    <header className="shrink-0 border-b transition-[width,height] ease-linear">
+    <header className="sticky top-0 z-30 shrink-0 border-b bg-background transition-[width,height] ease-linear md:top-2 md:before:absolute md:before:left-0 md:before:right-0 md:before:top-[-0.5rem] md:before:h-2 md:before:bg-background md:before:content-[''] md:before:pointer-events-none">
       <div className="flex h-(--header-height) w-full items-center gap-1 px-4 lg:gap-2 lg:px-6 group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />

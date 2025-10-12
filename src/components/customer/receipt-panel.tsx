@@ -22,7 +22,7 @@ export function ReceiptPanel({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border bg-card shadow-sm p-4">
+    <div className="rounded-2xl border bg-card shadow-2xl p-4">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">{title}</h2>

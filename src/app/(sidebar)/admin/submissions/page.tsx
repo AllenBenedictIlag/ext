@@ -1,5 +1,5 @@
 import SubmissionsPattern from "@/components/admin/statistics/submissions-pattern";
-import SubmissionsTable from "@/components/admin/submissions/submissions-table";
+import SubmissionsTable from "@/components/tables/submissions-table";
 
 export default function SubmissionsPage(){
     return(

@@ -1,4 +1,4 @@
-import UsersTable from "@/components/superadmin/users/users-table";
+import UsersTable from "@/components/tables/users-table";
 
 
 export default function UsersPage(){

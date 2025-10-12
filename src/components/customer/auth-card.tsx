@@ -23,6 +23,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 
 const CODE_PATTERN = /^[A-Z0-9-]{4,64}$/; // matches RCP-2025-0001
@@ -58,6 +64,10 @@ export function CustomerAuthCard() {
   const [usedMessage, setUsedMessage] = React.useState<string>("");
   const [summaryLoading, setSummaryLoading] = React.useState(false);
   const [summary, setSummary] = React.useState<Summary | null>(null);
+
+  // Terms dialog state
+  const [tcOpen, setTcOpen] = React.useState(false);
+  const [tcChecked, setTcChecked] = React.useState(false);
 
   const valid = CODE_PATTERN.test(code);
   const canBegin = valid && agree && !busy;
@@ -114,7 +124,6 @@ export function CustomerAuthCard() {
         return;
       }
 
-      // ok → proceed to form
       const target =
         data.redirect && data.redirect.startsWith("/")
           ? data.redirect
@@ -129,6 +138,16 @@ export function CustomerAuthCard() {
     }
   }
 
+  // Tooltip copy + show it only on hover (no forced open)
+  const disabledReason =
+    !valid
+      ? "Enter a valid Survey ID."
+      : !agree
+      ? "You must read and agree to the Terms first."
+      : busy
+      ? "Please wait…"
+      : null;
+
   return (
     <>
       {/* USED POPUP (shows full summary) */}
@@ -142,7 +161,7 @@ export function CustomerAuthCard() {
               <p className="text-sm text-muted-foreground">{usedMessage}</p>
 
               <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-                <p className="font-bold mb-2">Your previous answers</p>
+                <p className="mb-2 font-bold">Your previous answers</p>
 
                 {summaryLoading && (
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -199,7 +218,7 @@ export function CustomerAuthCard() {
       </Dialog>
 
       {/* CARD */}
-      <Card className="mx-auto w-full max-w-sm bg-card shadow-2xl px-4">
+      <Card className="mx-auto w-full max-w-sm bg-card px-4 shadow-2xl">
         <CardHeader className="space-y-1 text-center">
           <Image
             src="/images/coffee-black.png"
@@ -214,7 +233,7 @@ export function CustomerAuthCard() {
             alt="Coffee Crave"
             width={96}
             height={96}
-            className="mx-auto h-24 w-24 object-contain hidden dark:block"
+            className="mx-auto hidden h-24 w-24 object-contain dark:block"
           />
           <CardTitle className="text-base">Welcome</CardTitle>
           <CardDescription>
@@ -250,13 +269,18 @@ export function CustomerAuthCard() {
               ) : null}
             </div>
 
+            {/* Terms link + Dialog with checkbox inside */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Dialog>
+                <Dialog open={tcOpen} onOpenChange={(o) => {
+                  setTcOpen(o);
+                  if (!o) setTcChecked(false); // reset when closing
+                }}>
                   <DialogTrigger asChild>
                     <button
                       type="button"
-                      className="text-xs text-muted-foreground underline underline-offset-4"
+                      className="text-xs text-muted-foreground underline underline-offset-4 pb-6"
+                      aria-haspopup="dialog"
                     >
                       Terms and Conditions
                     </button>
@@ -265,6 +289,7 @@ export function CustomerAuthCard() {
                     <DialogHeader>
                       <DialogTitle>Privacy &amp; Data Use</DialogTitle>
                     </DialogHeader>
+
                     <ScrollArea className="max-h-[55vh] pr-2">
                       <div className="mb-5 mt-3 space-y-3 text-sm leading-relaxed text-justify">
                         <p>
@@ -292,28 +317,51 @@ export function CustomerAuthCard() {
                         </p>
                       </div>
                     </ScrollArea>
+
+                    <div className="mt-3 flex items-start gap-3 text-sm">
+                      <Checkbox
+                        id="agree-in-dialog"
+                        checked={tcChecked}
+                        onCheckedChange={(v) => setTcChecked(Boolean(v))}
+                        className="mt-0.5 h-4 w-4 shrink-0 border-2 border-muted-foreground/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                      />
+                      <Label
+                        htmlFor="agree-in-dialog"
+                        className="cursor-pointer select-none leading-5"
+                      >
+                        I have read and agree to the Terms and Conditions.
+                      </Label>
+                    </div>
+
+                    <div className="mt-4 flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setTcOpen(false)}
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          if (tcChecked) {
+                            setAgree(true);
+                            setTcOpen(false);
+                          }
+                        }}
+                        disabled={!tcChecked}
+                      >
+                        Agree &amp; Close
+                      </Button>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </div>
-
-              <div className="mt-3 mb-3 flex items-start gap-3 text-sm">
-                <Checkbox
-                  id="agree"
-                  checked={agree}
-                  onCheckedChange={(v) => setAgree(Boolean(v))}
-                  className="mt-0.5 h-4 w-4 shrink-0 border-2 border-muted-foreground/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                />
-                <Label
-                  htmlFor="agree"
-                  className="cursor-pointer select-none leading-5"
-                >
-                  I agree to the terms above.
-                </Label>
-              </div>
             </div>
+            {/* END Terms dialog */}
           </CardContent>
 
-          <CardFooter className="flex items-center justify-between gap-3 pb-5 pt-1">
+          <CardFooter className="flex items-center justify-between gap-3 pb-3 pt-1">
             <Button
               type="button"
               variant="outline"
@@ -322,18 +370,41 @@ export function CustomerAuthCard() {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className={`min-w-[110px] ${
-                agree ? "" : "opacity-50 cursor-not-allowed"
-              }`}
-              disabled={!agree || busy || !valid}
-            >
-              {busy && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-              )}
-              Begin
-            </Button>
+
+            {/* Tooltip appears ONLY on hover when disabledReason exists */}
+            {disabledReason ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        type="submit"
+                        className={`min-w-[110px] opacity-50 cursor-not-allowed`}
+                        disabled
+                      >
+                        {busy && (
+                          <Loader2
+                            className="mr-2 h-4 w-4 animate-spin"
+                            aria-hidden
+                          />
+                        )}
+                        Begin
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="max-w-[220px] text-xs">{disabledReason}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button type="submit" className="min-w-[110px]">
+                {busy && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                )}
+                Begin
+              </Button>
+            )}
           </CardFooter>
         </form>
       </Card>

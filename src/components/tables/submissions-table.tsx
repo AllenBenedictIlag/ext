@@ -89,6 +89,8 @@ type DataTableProps<T extends Record<string, unknown>> = {
   highlightRows?: boolean;
   searchKeys?: (keyof T & string)[];
   renderLinkCell?: (row: T) => React.ReactNode;
+  exportTitle?: string;
+  exportExcludeColumns?: (keyof T & string)[];
 };
 
 /* ---------- Detail types (dialog) ---------- */
@@ -142,7 +144,7 @@ const truncate = (text: string, max = 22): string =>
 const COLUMNS: ColumnDef<Row>[] = [
   {
     id: "submission_id",
-    header: "Submission ID",
+    header: "ID",
     accessor: (r) => r.submission_id,
     width: "140px",
     sortable: true,
@@ -237,6 +239,8 @@ function DataTable<T extends Record<string, unknown>>({
   highlightRows = true,
   searchKeys,
   renderLinkCell,
+  exportTitle = "Export",
+  exportExcludeColumns = [],
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState<string>("");
   const [pageSize, setPageSize] = React.useState<number>(10);
@@ -251,17 +255,33 @@ function DataTable<T extends Record<string, unknown>>({
   const [confirmOpen, setConfirmOpen] = React.useState(false); // Step 2 dialog
   type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
   const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
+  type ExportFormat = "CSV" | "PRINTABLE";
+  const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
   const PRESET_LABEL: Record<ExportPreset, string> = {
     FOLLOW_FILTER: "Follow the Custom Filter",
     LAST_7: "Last 7 days",
     LAST_30: "Last 30 days",
     LAST_90: "Last 3 months",
   };
+  const FORMAT_LABEL: Record<ExportFormat, string> = {
+    CSV: "CSV file",
+    PRINTABLE: "Printable table (PDF via print dialog)",
+  };
 
   const visibleColumns = React.useMemo(
     () => columns.filter((c) => visibility[c.id]),
     [columns, visibility]
   );
+  const exportExcludeSet = React.useMemo(
+    () => new Set(exportExcludeColumns),
+    [exportExcludeColumns]
+  );
+  const exportColumns = React.useMemo(() => {
+    const filtered = visibleColumns.filter(
+      (c) => !exportExcludeSet.has(c.id as keyof T & string)
+    );
+    return filtered.length > 0 ? filtered : visibleColumns;
+  }, [visibleColumns, exportExcludeSet]);
 
   const SEARCH_KEYS: (keyof T & string)[] =
     searchKeys ?? (columns.map((c) => c.id) as (keyof T & string)[]);
@@ -357,6 +377,34 @@ function DataTable<T extends Record<string, unknown>>({
     return { startMs, endMs };
   }
 
+  function presetTitleShort(p: ExportPreset): string {
+    return p === "FOLLOW_FILTER" ? "Custom" : PRESET_LABEL[p];
+  }
+  function currentDatePH(): Date {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  }
+  function formatDisplayDatePH(d: Date): string {
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila",
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    }).format(d);
+  }
+  function formatFileDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}${m}${day}`;
+  }
+  function slugify(value: string): string {
+    const slug = value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return slug || "export";
+  }
+
   // Pull submitted_at using the declared column's accessor to avoid hard-coding types (ADDED)
   const submittedAtCol = React.useMemo(
     () => columns.find((c) => c.id === "submitted_at"),
@@ -386,9 +434,10 @@ function DataTable<T extends Record<string, unknown>>({
 
   // Build CSV over a given list & visible columns (keeps formatting rules)
   function buildCSVFor(list: T[]): string {
-    const headers = visibleColumns.map((c) => c.header);
+    const cols = exportColumns.length ? exportColumns : visibleColumns;
+    const headers = cols.map((c) => c.header);
     const rows = list.map((row) =>
-      visibleColumns.map((c) => {
+      cols.map((c) => {
         const raw = c.accessor(row);
         if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
           return formatDatePH(raw);
@@ -422,6 +471,163 @@ function DataTable<T extends Record<string, unknown>>({
     URL.revokeObjectURL(url);
   }
 
+  function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (match) => {
+      switch (match) {
+        case "&":
+          return "&amp;";
+        case "<":
+          return "&lt;";
+        case ">":
+          return "&gt;";
+        case '"':
+          return "&quot;";
+        case "'":
+          return "&#39;";
+        default:
+          return match;
+      }
+    });
+  }
+
+  function openPrintableTable(list: T[], docTitle: string, rangeLabel: string) {
+    if (typeof window === "undefined") return;
+    const cols = exportColumns.length ? exportColumns : visibleColumns;
+    const headersHtml = cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join("");
+    const rowsHtml = list.length
+      ? list
+          .map((row) => {
+            const cells = cols
+              .map((c) => {
+                const raw = c.accessor(row);
+                let text: string;
+                if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
+                  text = formatDatePH(raw);
+                } else if (raw == null) {
+                  text = "";
+                } else {
+                  text = String(raw);
+                }
+                return `<td>${escapeHtml(text)}</td>`;
+              })
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="${cols.length}" style="text-align:center;">No rows to export</td></tr>`;
+    const generatedAt = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const rangeLine = rangeLabel ? `Range: ${escapeHtml(rangeLabel)}<br />` : "";
+
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(docTitle)}</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        margin: 24px;
+        color: #1f2937;
+        background: #fff;
+      }
+      h1 {
+        margin: 0 0 4px 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .meta {
+        margin: 0 0 16px 0;
+        font-size: 12px;
+        color: #4b5563;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th, td {
+        border: 1px solid #d1d5db;
+        padding: 8px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f3f4f6;
+        font-weight: 600;
+      }
+      @media print {
+        body {
+          margin: 12px;
+        }
+        h1 {
+          font-size: 18px;
+        }
+        table {
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(docTitle)}</h1>
+    <p class="meta">${rangeLine}Generated ${escapeHtml(generatedAt)}</p>
+    <table>
+      <thead>
+        <tr>${headersHtml}</tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </body>
+</html>`;
+
+    const printable = window.open("", "_blank");
+    if (!printable) {
+      console.warn("Unable to open printable export window.");
+      return;
+    }
+    printable.document.open();
+    printable.document.write(html);
+    printable.document.close();
+    printable.document.title = docTitle;
+
+    const triggerPrint = () => {
+      try {
+        printable.focus();
+      } catch {}
+      try {
+        printable.print();
+      } catch {}
+    };
+
+    const cleanup = () => {
+      try {
+        printable.close();
+      } catch {}
+    };
+
+    if (typeof printable.addEventListener === "function") {
+      printable.addEventListener("afterprint", cleanup, { once: true });
+    }
+    setTimeout(cleanup, 60_000);
+
+    if (printable.document.readyState === "complete") {
+      setTimeout(triggerPrint, 100);
+    } else if (typeof printable.addEventListener === "function") {
+      printable.addEventListener(
+        "load",
+        () => {
+          setTimeout(triggerPrint, 100);
+        },
+        { once: true }
+      );
+    } else {
+      setTimeout(triggerPrint, 150);
+    }
+  }
+
   function presetSlug(p: ExportPreset): string {
     switch (p) {
       case "LAST_7": return "last7d";
@@ -435,7 +641,7 @@ function DataTable<T extends Record<string, unknown>>({
     <div className="space-y-3">
       {/* Controls */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-[300px]">
+        <div className="relative w-full sm:max-w-[300px] border-1 ">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             aria-label="Search submissions"
@@ -495,42 +701,66 @@ function DataTable<T extends Record<string, unknown>>({
           </Select>
 
           {/* ---------- Step 1: Choose export preset (ADDED) ---------- */}
-          <AlertDialog open={exportOpen} onOpenChange={setExportOpen}>
+          <AlertDialog
+            open={exportOpen}
+            onOpenChange={(open) => {
+              setExportOpen(open);
+              if (!open) setConfirmOpen(false);
+            }}
+          >
             <AlertDialogTrigger asChild>
               <Button
                 variant="default"
                 size="sm"
-                aria-label="Export rows to CSV"
+                aria-label="Export rows"
                 className="btn-halo btn-halo--emph"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Export CSV
+                Export
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Export submissions</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose the time window to export. “Follow the Custom Filter” uses the current table filter & sort.
+                  Choose the time window and format to export. “Follow the Custom Filter” uses the current table filter & sort.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Export range</label>
-                <Select value={exportPreset} onValueChange={(v) => setExportPreset(v as ExportPreset)}>
-                  <SelectTrigger className="w-full border-2 border-primary/70
+              <div className="grid gap-4">
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Date range</span>
+                  <Select value={exportPreset} onValueChange={(v) => setExportPreset(v as ExportPreset)}>
+                    <SelectTrigger className="w-full border-2 border-primary/70
                hover:border-primary
                data-[state=open]:border-primary
                focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent className="border-2 border-primary/30 shadow-lg">
-                    <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
-                    <SelectItem value="LAST_7">Last 7 days</SelectItem>
-                    <SelectItem value="LAST_30">Last 30 days</SelectItem>
-                    <SelectItem value="LAST_90">Last 3 months</SelectItem>
-                  </SelectContent>
-                </Select>
+                      <SelectValue placeholder="Select range" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                      <SelectItem value="LAST_7">Last 7 days</SelectItem>
+                      <SelectItem value="LAST_30">Last 30 days</SelectItem>
+                      <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Format</span>
+                  <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ExportFormat)}>
+                    <SelectTrigger className="w-full border-2 border-primary/70
+               hover:border-primary
+               data-[state=open]:border-primary
+               focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="CSV">CSV (.csv)</SelectItem>
+                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <AlertDialogFooter className="mt-2">
@@ -553,8 +783,10 @@ function DataTable<T extends Record<string, unknown>>({
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirm export</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to export data for{" "}
-                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span>?
+                  Are you sure you want to export{" "}
+                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span>{" "}
+                  as{" "}
+                  <span className="font-medium">{FORMAT_LABEL[exportFormat]}</span>?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -562,9 +794,19 @@ function DataTable<T extends Record<string, unknown>>({
                 <AlertDialogAction
                   onClick={() => {
                     const list = rowsForExport();
-                    const csv = buildCSVFor(list);
-                    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "");
-                    downloadCSV(`submissions-${presetSlug(exportPreset)}-${ts}.csv`, csv);
+                    const nowPH = currentDatePH();
+                    const displayDate = formatDisplayDatePH(nowPH);
+                    const shortRange = presetTitleShort(exportPreset);
+                    const docTitle = `${exportTitle} (${shortRange}) ${displayDate}`;
+                    const rangeLabel = PRESET_LABEL[exportPreset];
+                    if (exportFormat === "CSV") {
+                      const csv = buildCSVFor(list);
+                      const fileName = `${slugify(exportTitle)}-${presetSlug(exportPreset)}-${formatFileDate(nowPH)}.csv`;
+                      downloadCSV(fileName, csv);
+                    } else {
+                      openPrintableTable(list, docTitle, rangeLabel);
+                    }
+                    setConfirmOpen(false);
                   }}
                 >
                   Yes, export
@@ -888,6 +1130,8 @@ export default function SubmissionsTable({
                   "revisit_intent",
                 ]}
                 renderLinkCell={renderLinkCell}
+                exportTitle="Submissions"
+                exportExcludeColumns={["answers_count", "revisit_intent", "link_to_answers"]}
               />
             );
           }}
@@ -968,3 +1212,6 @@ export default function SubmissionsTable({
     </Card>
   );
 }
+
+
+

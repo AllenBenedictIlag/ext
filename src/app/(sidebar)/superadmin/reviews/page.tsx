@@ -1,6 +1,6 @@
 
-import ReviewQueue from "@/components/superadmin/reviews/review-queue";
-import SurveyVersions from "@/components/superadmin/reviews/survey-versions";
+import ReviewQueue from "@/components/tables/review-queue";
+import SurveyVersions from "@/components/tables/survey-versions";
 
 export default function ReviewsPage(){
     return(

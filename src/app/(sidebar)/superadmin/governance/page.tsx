@@ -1,5 +1,5 @@
 import { SectionCards } from "@/components/superadmin/governance/super-tiles";
-import ReviewQueue from "@/components/superadmin/reviews/review-queue";
+import ReviewQueue from "@/components/tables/review-queue";
 
 export default function GovernancePage() {
     return (

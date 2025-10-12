@@ -1,4 +1,4 @@
-import RecentComments from "@/components/admin/comments/recent-comments";
+import RecentComments from "@/components/tables/recent-comments";
 import CommentVolume from "@/components/admin/comments/comment-volume";
 
 

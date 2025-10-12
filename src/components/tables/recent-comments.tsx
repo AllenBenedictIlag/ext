@@ -138,6 +138,24 @@ function downloadCSV(filename: string, csv: string) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (match) => {
+    switch (match) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return match;
+    }
+  });
+}
 function EllipsisWithTooltip(props: { text: string; className?: string; maxChars?: number }) {
   const { text, className, maxChars = 160 } = props;
   const short = truncate(text, maxChars);
@@ -446,6 +464,39 @@ function DataTable(props: {
 
   React.useEffect(() => { setPage(1); }, [query, pageSize]);
 
+  const exportColumns = React.useMemo(
+    () => columns.filter((c) => c.id !== "submission_link" && c.id !== "words"),
+    [columns]
+  );
+
+  function presetTitleShort(preset: ExportPreset): string {
+    return preset === "FOLLOW_FILTER" ? "Custom" : PRESET_LABEL[preset];
+  }
+  function currentDatePH(): Date {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  }
+  function formatDisplayDatePH(d: Date): string {
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila",
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    }).format(d);
+  }
+  function formatFileDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}${m}${day}`;
+  }
+  function slugify(value: string): string {
+    const slug = value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return slug || "export";
+  }
+
   function toggleSort(k: SortKey) {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(k); setSortDir(k === "submitted_at" ? "desc" : "asc"); }
@@ -474,14 +525,141 @@ function DataTable(props: {
     for (const r of sorted) lines.push(columns.map((c) => csvEscape(getCellRaw(c, r))).join(","));
     return lines.join("\r\n");
   }
-  // Helper to build CSV for a specific subset (used by enhanced Export)  // ADDED
-  function buildCSVForRows(list: Row[]) {                                  // ADDED
-    const headers = columns.map((c) => c.header);                           // ADDED
-    const lines: string[] = [];                                             // ADDED
-    lines.push(headers.map(csvEscape).join(","));                           // ADDED
-    for (const r of list) lines.push(columns.map((c) => csvEscape(getCellRaw(c, r))).join(",")); // ADDED
-    return lines.join("\r\n");                                              // ADDED
-  }                                                                          // ADDED
+  // Helper to build CSV for a specific subset (used by enhanced Export)
+  function buildCSVForRows(list: Row[]) {
+    const headers = exportColumns.map((c) => c.header);
+    const lines: string[] = [];
+    lines.push(headers.map(csvEscape).join(","));
+    for (const r of list) lines.push(exportColumns.map((c) => csvEscape(getCellRaw(c, r))).join(","));
+    return lines.join("\r\n");
+  }
+  function openPrintableTable(list: Row[], docTitle: string, rangeLabel: string) {
+    if (typeof window === "undefined") return;
+    const headersHtml = exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join("");
+    const rowsHtml = list.length
+      ? list
+          .map((row) => {
+            const cells = exportColumns
+              .map((col) => `<td>${escapeHtml(getCellRaw(col, row))}</td>`)
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="${exportColumns.length}" style="text-align:center;">No rows to export</td></tr>`;
+    const generatedAt = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const rangeLine = rangeLabel ? `Range: ${escapeHtml(rangeLabel)}<br />` : "";
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(docTitle)}</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        margin: 24px;
+        color: #1f2937;
+        background: #fff;
+      }
+      h1 {
+        margin: 0 0 4px 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .meta {
+        margin: 0 0 16px 0;
+        font-size: 12px;
+        color: #4b5563;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th, td {
+        border: 1px solid #d1d5db;
+        padding: 8px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f3f4f6;
+        font-weight: 600;
+      }
+      @media print {
+        body {
+          margin: 12px;
+        }
+        h1 {
+          font-size: 18px;
+        }
+        table {
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(docTitle)}</h1>
+    <p class="meta">${rangeLine}Generated ${escapeHtml(generatedAt)}</p>
+    <table>
+      <thead>
+        <tr>${headersHtml}</tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </body>
+</html>`;
+
+    const printable = window.open("", "_blank");
+    if (!printable) {
+      console.warn("Unable to open printable export window.");
+      return;
+    }
+    printable.document.open();
+    printable.document.write(html);
+    printable.document.close();
+    printable.document.title = docTitle;
+
+    const triggerPrint = () => {
+      try {
+        printable.focus();
+      } catch {}
+      try {
+        printable.print();
+      } catch {}
+    };
+
+    const cleanup = () => {
+      try {
+        printable.close();
+      } catch {}
+    };
+
+    if (typeof printable.addEventListener === "function") {
+      printable.addEventListener(
+        "afterprint",
+        () => {
+          cleanup();
+        },
+        { once: true }
+      );
+    }
+
+    if (printable.document.readyState === "complete") {
+      setTimeout(triggerPrint, 100);
+    } else {
+      printable.addEventListener(
+        "load",
+        () => {
+          setTimeout(triggerPrint, 100);
+        },
+        { once: true }
+      );
+    }
+  }
 
   const headerCells = columns.map((c) => {
     const isSortable =
@@ -558,16 +736,22 @@ function DataTable(props: {
   });
 
   /* ----- Export flow (two-step) ------------------------------------------- */
-  const [exportOpen, setExportOpen] = React.useState(false);   // ADDED
-  const [confirmOpen, setConfirmOpen] = React.useState(false); // ADDED
+  const [exportOpen, setExportOpen] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90"; // ADDED
-  const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER"); // ADDED
-  const PRESET_LABEL: Record<ExportPreset, string> = {                     // ADDED
+  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
+  type ExportFormat = "CSV" | "PRINTABLE";
+  const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
+  const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
+  const PRESET_LABEL: Record<ExportPreset, string> = {
     FOLLOW_FILTER: "Follow the Custom Filter",
-    LAST_7:       "Last 7 days",
-    LAST_30:      "Last 30 days",
-    LAST_90:      "Last 3 months",
+    LAST_7: "Last 7 days",
+    LAST_30: "Last 30 days",
+    LAST_90: "Last 3 months",
+  };
+  const FORMAT_LABEL: Record<ExportFormat, string> = {
+    CSV: "CSV file",
+    PRINTABLE: "Printable table (PDF via print dialog)",
   };
 
   // PH timezone helpers                                                      // ADDED
@@ -637,40 +821,65 @@ function DataTable(props: {
             </SelectContent>
           </Select>
 
-          {/* -------- Step 1: Choose export preset (ADDED) -------- */}
-          <AlertDialog open={exportOpen} onOpenChange={setExportOpen}>
+          {/* -------- Step 1: Choose export preset -------- */}
+          <AlertDialog
+            open={exportOpen}
+            onOpenChange={(open) => {
+              setExportOpen(open);
+              if (!open) setConfirmOpen(false);
+            }}
+          >
             <AlertDialogTrigger asChild>
-              <Button variant="default" className="gap-2" aria-label="Export rows to CSV">
+              <Button variant="default" className="gap-2" aria-label="Export recent comments">
                 <Download className="h-4 w-4" />
-                Export CSV
+                Export
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Export Range</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose what time window to export. “Follow the Custom Filter” uses the current dashboard date filter (and table search).
+                  Choose what to export. “Follow the Custom Filter” uses the current dashboard date filter (and table search).
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
-              <div className="grid gap-2">
-                <Select
-                  value={exportPreset}
-                  onValueChange={(v) => setExportPreset(v as ExportPreset)}
-                >
-                  <SelectTrigger className="w-full border-2 border-primary/70
+              <div className="grid gap-4">
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Date range</span>
+                  <Select
+                    value={exportPreset}
+                    onValueChange={(v) => setExportPreset(v as ExportPreset)}
+                  >
+                    <SelectTrigger className="w-full border-2 border-primary/70
                hover:border-primary
                data-[state=open]:border-primary
                focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent className="border-2 border-primary/30 shadow-lg">
-                    <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
-                    <SelectItem value="LAST_7">Last 7 days</SelectItem>
-                    <SelectItem value="LAST_30">Last 30 days</SelectItem>
-                    <SelectItem value="LAST_90">Last 3 months</SelectItem>
-                  </SelectContent>
-                </Select>
+                      <SelectValue placeholder="Select range" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                      <SelectItem value="LAST_7">Last 7 days</SelectItem>
+                      <SelectItem value="LAST_30">Last 30 days</SelectItem>
+                      <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Format</span>
+                  <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ExportFormat)}>
+                    <SelectTrigger className="w-full border-2 border-primary/70
+               hover:border-primary
+               data-[state=open]:border-primary
+               focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="CSV">CSV (.csv)</SelectItem>
+                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <AlertDialogFooter className="mt-2">
@@ -687,14 +896,16 @@ function DataTable(props: {
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* -------- Step 2: Final confirmation (ADDED) -------- */}
+          {/* -------- Step 2: Final confirmation -------- */}
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirm export</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to export data for{" "}
-                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span>?
+                  Are you sure you want to export{" "}
+                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span>{" "}
+                  as{" "}
+                  <span className="font-medium">{FORMAT_LABEL[exportFormat]}</span>?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -702,8 +913,20 @@ function DataTable(props: {
                 <AlertDialogAction
                   onClick={() => {
                     const data = rowsForExport();
-                    const csv = buildCSVForRows(data);
-                    downloadCSV("recent-comments.csv", csv);
+                    const nowPH = currentDatePH();
+                    const displayDate = formatDisplayDatePH(nowPH);
+                    const docTitle = `Recent Comments (${presetTitleShort(exportPreset)}) ${displayDate}`;
+                    const rangeLabel = PRESET_LABEL[exportPreset];
+                    if (exportFormat === "CSV") {
+                      const csv = buildCSVForRows(data);
+                      const fileName = `recent-comments-${slugify(presetTitleShort(exportPreset))}-${formatFileDate(
+                        nowPH
+                      )}.csv`;
+                      downloadCSV(fileName, csv);
+                    } else {
+                      openPrintableTable(data, docTitle, rangeLabel);
+                    }
+                    setConfirmOpen(false);
                   }}
                 >
                   Yes, export
@@ -954,3 +1177,4 @@ export default function RecentComments() {
     </TooltipProvider>
   );
 }
+

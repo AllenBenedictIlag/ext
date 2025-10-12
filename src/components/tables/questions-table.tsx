@@ -856,7 +856,7 @@ export default function QuestionsTable({
 
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card px-4 shadow-md">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle className="text-xl tracking-normal">Active Published Survey</CardTitle>
         {/* <CardDescription className="text-sm">
           It connects the exact wording of each question to its live stats. Use it

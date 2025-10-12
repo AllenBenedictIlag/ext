@@ -451,7 +451,7 @@ function DataTable({
       >
         <div className="max-h-[620px] overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
+            <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 {visibleColumns.map((c) => {
                   const id = String(c.id);

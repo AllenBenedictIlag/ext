@@ -1,5 +1,5 @@
 import AnswerDensity from "@/components/admin/answers/answer-density";
-import AnomaliesTable from "@/components/superadmin/data-quality/anomalies-table";
+import AnomaliesTable from "@/components/tables/anomalies-table";
 import CompletionMatrix from "@/components/superadmin/data-quality/completion-matrix";
 import OptionBalance from "@/components/superadmin/data-quality/option-balance";
 import RequiredCoverage from "@/components/superadmin/data-quality/required-coverage";

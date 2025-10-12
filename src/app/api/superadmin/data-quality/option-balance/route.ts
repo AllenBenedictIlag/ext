@@ -139,10 +139,10 @@ export async function GET(req: Request) {
     const lPcts = toPctParts([lCounts["1"], lCounts["2"], lCounts["3"], lCounts["4"]]);
 
     const likert = [
-      { key: "1", label: "1 — Extremely Dissatisfied", count: lCounts["1"], pct: lPcts[0] },
-      { key: "2", label: "2 — Dissatisfied",            count: lCounts["2"], pct: lPcts[1] },
-      { key: "3", label: "3 — Satisfied",               count: lCounts["3"], pct: lPcts[2] },
-      { key: "4", label: "4 — Extremely Satisfied",     count: lCounts["4"], pct: lPcts[3] },
+      { key: "1", label: "Extremely Dissatisfied", count: lCounts["1"], pct: lPcts[0] },
+      { key: "2", label: "Dissatisfied",            count: lCounts["2"], pct: lPcts[1] },
+      { key: "3", label: "Satisfied",               count: lCounts["3"], pct: lPcts[2] },
+      { key: "4", label: "Extremely Satisfied",     count: lCounts["4"], pct: lPcts[3] },
     ];
 
     /* ---------- YES/NO buckets ---------- */

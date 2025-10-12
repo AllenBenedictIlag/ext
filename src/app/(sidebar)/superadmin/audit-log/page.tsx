@@ -1,4 +1,4 @@
-import AuditLog from "@/components/superadmin/audit-log/audit-log";
+import AuditLog from "@/components/tables/audit-log";
 
 export default function AuditLogPage() {
     return (

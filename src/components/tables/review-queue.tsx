@@ -1,20 +1,16 @@
 "use client";
 
 /**
- * File: src\components\superadmin\reviews\review-queue.tsx
+ * File: src/components/superadmin/reviews/review-queue.tsx
  * Component: <ReviewQueue/>
  *
  * Super Admin — Review Queue + Diff
  * - Client-only. No fetching. Renders from typed SAMPLE_DATA (≥ 12 rows).
  * - Next.js App Router + TypeScript (strict) + shadcn/ui + Tailwind.
  *
- * Update (UX): Dialog made larger + roomier diff table (wider, taller, better wrapping).
- * - DialogContent: max-w-6xl, w-[98vw], max-h-[88vh]
- * - Diff table: wider columns, monospace for before/after, better spacing, word-count tucked.
- *
- * Export (Updated):
- * - Step 1: Select export range (Last 3 months / Last 30 days / Last 7 days / Follow the Custom Filter)
- * - Step 2: Confirm “Are you sure you want to export data for …?”
+ * Export (Two-step + Preview):
+ * - Step 1: Select export range (Last 3 months / Last 30 days / Last 7 days / Follow the Custom Filter) + live "N rows will be exported".
+ * - Step 2: Confirm “Are you sure you want to export … as CSV/Printable?”
  * - “Follow the Custom Filter” exports the full filtered & sorted set (not paged).
  * - Presets filter by `submitted_for_review_at` in Asia/Manila time.
  */
@@ -129,7 +125,7 @@ export type QueueRow = {
   submitted_by_id: number;
   submitted_by_name: string; // resolved name
   submitted_for_review_at: string; // ISO datetime
-  changes_count: number; // derived: number of diffs
+  changes_count: number; // derived: number of diffs (kept in data model; not displayed)
   diff_link: string; // /super/reviews/{id}/diff
   diffs: DiffRow[]; // embedded for the example
   /** derived, for search convenience */
@@ -157,6 +153,8 @@ type DataTableProps<T extends Record<string, unknown>> = {
   highlightRows?: boolean;
   searchKeys?: (keyof T & string)[];
   renderLinkCell?: (row: T) => React.ReactNode;
+  exportTitle?: string;
+  exportExcludeColumns?: (keyof T & string)[];
 };
 
 /** Action receipts (client-only simulation of server-side mutations) */
@@ -228,13 +226,13 @@ function EllipsizedWithTooltip({
 }
 
 /* =========================================================================
-   Column Definitions (Queue)
+   Column Definitions (Queue) — "Changes" column removed
    ========================================================================= */
 
 const QUEUE_COLUMNS: ColumnDef<QueueRow>[] = [
   {
     id: "survey_id",
-    header: "Survey ID",
+    header: "ID",
     accessor: (r) => r.survey_id,
     width: "120px",
     sortable: true,
@@ -261,7 +259,7 @@ const QUEUE_COLUMNS: ColumnDef<QueueRow>[] = [
   },
   {
     id: "submitted_by_name",
-    header: "Submitted By",
+    header: "Submitted by",
     accessor: (r) => r.submitted_by_name,
     formatter: (v) => <span className="whitespace-nowrap">{String(v)}</span>,
     width: "200px",
@@ -271,21 +269,12 @@ const QUEUE_COLUMNS: ColumnDef<QueueRow>[] = [
   },
   {
     id: "submitted_for_review_at",
-    header: "Submitted (PH)",
+    header: "Submitted",
     accessor: (r) => r.submitted_for_review_at,
     formatter: (v) => <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>,
     width: "220px",
     sortable: true,
     visible: true,
-  },
-  {
-    id: "changes_count",
-    header: "Changes",
-    accessor: (r) => r.changes_count,
-    width: "120px",
-    sortable: true,
-    visible: true,
-    align: "right",
   },
   {
     id: "diff_link",
@@ -309,6 +298,8 @@ function DataTable<T extends Record<string, unknown>>({
   highlightRows = true,
   searchKeys,
   renderLinkCell,
+  exportTitle = "Review Queue",
+  exportExcludeColumns = [],
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState<string>("");
   const [pageSize, setPageSize] = React.useState<number>(10);
@@ -319,21 +310,37 @@ function DataTable<T extends Record<string, unknown>>({
   );
 
   // ----- Export (two-step) -----
-  const [exportOpen, setExportOpen] = React.useState(false);   // Step 1: preset picker
+  const [exportOpen, setExportOpen] = React.useState(false); // Step 1: preset picker
   const [confirmOpen, setConfirmOpen] = React.useState(false); // Step 2: confirmation
   type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
   const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
+  type ExportFormat = "CSV" | "PRINTABLE";
+  const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
   const PRESET_LABEL: Record<ExportPreset, string> = {
     FOLLOW_FILTER: "Follow the Custom Filter",
     LAST_7: "Last 7 days",
     LAST_30: "Last 30 days",
     LAST_90: "Last 3 months",
   };
+  const FORMAT_LABEL: Record<ExportFormat, string> = {
+    CSV: "CSV file",
+    PRINTABLE: "Printable table (PDF via print dialog)",
+  };
 
   const visibleColumns = React.useMemo(
     () => columns.filter((c) => visibility[c.id]),
     [columns, visibility]
   );
+  const exportExcludeSet = React.useMemo(
+    () => new Set(exportExcludeColumns),
+    [exportExcludeColumns]
+  );
+  const exportColumns = React.useMemo(() => {
+    const filtered = visibleColumns.filter(
+      (c) => !exportExcludeSet.has(c.id as keyof T & string)
+    );
+    return filtered.length > 0 ? filtered : visibleColumns;
+  }, [visibleColumns, exportExcludeSet]);
 
   const SEARCH_KEYS: (keyof T & string)[] =
     searchKeys ?? (columns.map((c) => c.id) as (keyof T & string)[]);
@@ -342,8 +349,9 @@ function DataTable<T extends Record<string, unknown>>({
     if (!query.trim()) return data;
     const q = query.toLowerCase();
     return data.filter((row) => {
-      const hay = SEARCH_KEYS.map((k) => row[k])
-        .map((v) => (v == null ? "" : String(v).toLowerCase()));
+      const hay = SEARCH_KEYS.map((k) => row[k]).map((v) =>
+        v == null ? "" : String(v).toLowerCase()
+      );
       return hay.some((s) => s.includes(q));
     });
   }, [data, query, SEARCH_KEYS]);
@@ -396,8 +404,7 @@ function DataTable<T extends Record<string, unknown>>({
     });
   };
 
-  const toggleCol = (id: string) =>
-    setVisibility((v) => ({ ...v, [id]: !v[id] }));
+  const toggleCol = (id: string) => setVisibility((v) => ({ ...v, [id]: !v[id] }));
 
   // ----- PH timezone + preset range helpers -----
   function phTodayYMD() {
@@ -417,15 +424,40 @@ function DataTable<T extends Record<string, unknown>>({
     if (p === "FOLLOW_FILTER") return null;
     const today = phTodayYMD();
     const endMs = phEndOfDayUTCms(today);
-    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90;
+    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90; // ~3 months
     const startDate = new Date(new Date(`${today}T00:00:00+08:00`).getTime());
-    startDate.setDate(startDate.getDate() - (days - 1)); // inclusive
+    startDate.setDate(startDate.getDate() - (days - 1)); // inclusive window
     const y = startDate.getFullYear();
     const m = String(startDate.getMonth() + 1).padStart(2, "0");
     const d = String(startDate.getDate()).padStart(2, "0");
     const startYMD = `${y}-${m}-${d}`;
     const startMs = phMidnightUTCms(startYMD);
     return { startMs, endMs };
+  }
+
+  function presetTitleShort(p: ExportPreset): string {
+    return p === "FOLLOW_FILTER" ? "Custom" : PRESET_LABEL[p];
+  }
+  function currentDatePH(): Date {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  }
+  function formatDisplayDatePH(d: Date): string {
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila",
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    }).format(d);
+  }
+  function formatFileDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}${m}${day}`;
+  }
+  function slugify(value: string): string {
+    const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug || "export";
   }
 
   // Use the declared column accessor for submitted_for_review_at
@@ -455,11 +487,18 @@ function DataTable<T extends Record<string, unknown>>({
     });
   }
 
+  // ADDED: live preview count for Step 1
+  const exportPreviewCount = React.useMemo(
+    () => rowsForExport().length,
+    [sorted, exportPreset, submittedCol]
+  );
+
   // CSV utils
   function buildCSVFor(list: T[]): string {
-    const headers = visibleColumns.map((c) => c.header);
+    const cols = exportColumns.length ? exportColumns : visibleColumns;
+    const headers = cols.map((c) => c.header);
     const rows = list.map((row) =>
-      visibleColumns.map((c) => {
+      cols.map((c) => {
         const raw = c.accessor(row);
         if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
           return formatDatePH(raw);
@@ -493,12 +532,173 @@ function DataTable<T extends Record<string, unknown>>({
     URL.revokeObjectURL(url);
   }
 
+  function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (match) => {
+      switch (match) {
+        case "&":
+          return "&amp;";
+        case "<":
+          return "&lt;";
+        case ">":
+          return "&gt;";
+        case '"':
+          return "&quot;";
+        case "'":
+          return "&#39;";
+        default:
+          return match;
+      }
+    });
+  }
+
+  function openPrintableTable(list: T[], docTitle: string, rangeLabel: string) {
+    if (typeof window === "undefined") return;
+    const cols = exportColumns.length ? exportColumns : visibleColumns;
+    const headersHtml = cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join("");
+    const rowsHtml = list.length
+      ? list
+          .map((row) => {
+            const cells = cols
+              .map((c) => {
+                const raw = c.accessor(row);
+                let text: string;
+                if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
+                  text = formatDatePH(raw);
+                } else if (raw == null) {
+                  text = "";
+                } else {
+                  text = String(raw);
+                }
+                return `<td>${escapeHtml(text)}</td>`;
+              })
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="${cols.length}" style="text-align:center;">No rows to export</td></tr>`;
+    const generatedAt = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const rangeLine = rangeLabel ? `Range: ${escapeHtml(rangeLabel)}<br />` : "";
+
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(docTitle)}</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        margin: 24px;
+        color: #1f2937;
+        background: #fff;
+      }
+      h1 {
+        margin: 0 0 4px 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .meta {
+        margin: 0 0 16px 0;
+        font-size: 12px;
+        color: #4b5563;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th, td {
+        border: 1px solid #d1d5db;
+        padding: 8px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f3f4f6;
+        font-weight: 600;
+      }
+      @media print {
+        body {
+          margin: 12px;
+        }
+        h1 {
+          font-size: 18px;
+        }
+        table {
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(docTitle)}</h1>
+    <p class="meta">${rangeLine}Generated ${escapeHtml(generatedAt)}</p>
+    <table>
+      <thead>
+        <tr>${headersHtml}</tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </body>
+</html>`;
+
+    const printable = window.open("", "_blank");
+    if (!printable) {
+      console.warn("Unable to open printable export window.");
+      return;
+    }
+    printable.document.open();
+    printable.document.write(html);
+    printable.document.close();
+    printable.document.title = docTitle;
+
+    const triggerPrint = () => {
+      try {
+        printable.focus();
+      } catch {}
+      try {
+        printable.print();
+      } catch {}
+    };
+
+    const cleanup = () => {
+      try {
+        printable.close();
+      } catch {}
+    };
+
+    if (typeof printable.addEventListener === "function") {
+      printable.addEventListener("afterprint", cleanup, { once: true });
+    }
+    setTimeout(cleanup, 60_000);
+
+    if (printable.document.readyState === "complete") {
+      setTimeout(triggerPrint, 100);
+    } else if (typeof printable.addEventListener === "function") {
+      printable.addEventListener(
+        "load",
+        () => {
+          setTimeout(triggerPrint, 100);
+        },
+        { once: true }
+      );
+    } else {
+      setTimeout(triggerPrint, 150);
+    }
+  }
+
   function presetSlug(p: ExportPreset): string {
     switch (p) {
-      case "LAST_7": return "last7d";
-      case "LAST_30": return "last30d";
-      case "LAST_90": return "last3mo";
-      default: return "custom";
+      case "LAST_7":
+        return "last7d";
+      case "LAST_30":
+        return "last30d";
+      case "LAST_90":
+        return "last3mo";
+      default:
+        return "custom";
     }
   }
 
@@ -506,11 +706,11 @@ function DataTable<T extends Record<string, unknown>>({
     <div className="space-y-3">
       {/* Controls */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full">
+        <div className="relative w-full sm:max-w-[300px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            aria-label="Search queue"
-            placeholder="Search title, admin, key…"
+          <Input  
+            aria-label="Search submissions"
+            placeholder="Search receipt, ID, link, intent…"
             value={query}
             onChange={(e) => {
               setPage(1);
@@ -565,39 +765,72 @@ function DataTable<T extends Record<string, unknown>>({
           </Select>
 
           {/* Step 1: Choose export preset */}
-          <AlertDialog open={exportOpen} onOpenChange={setExportOpen}>
+          <AlertDialog
+            open={exportOpen}
+            onOpenChange={(open) => {
+              setExportOpen(open);
+              if (!open) setConfirmOpen(false);
+            }}
+          >
             <AlertDialogTrigger asChild>
               <Button
                 variant="default"
                 size="sm"
-                aria-label="Export rows to CSV"
+                aria-label="Export rows"
                 className="btn-halo btn-halo--emph"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Export CSV
+                Export
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Export review queue</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose the time window. “Follow the Custom Filter” uses the current table filter & sort.
+                  Choose the time window and format. “Follow the Custom Filter” uses the current table
+                  filter & sort.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Export range</label>
-                <Select value={exportPreset} onValueChange={(v) => setExportPreset(v as any)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
-                    <SelectItem value="LAST_7">Last 7 days</SelectItem>
-                    <SelectItem value="LAST_30">Last 30 days</SelectItem>
-                    <SelectItem value="LAST_90">Last 3 months</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid gap-4">
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Date range</span>
+                  <Select value={exportPreset} onValueChange={(v) => setExportPreset(v as any)}>
+                    <SelectTrigger className="w-full border-2 border-primary/70 hover:border-primary data-[state=open]:border-primary focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
+                      <SelectValue placeholder="Select range" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                      <SelectItem value="LAST_7">Last 7 days</SelectItem>
+                      <SelectItem value="LAST_30">Last 30 days</SelectItem>
+                      <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Format</span>
+                  <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as any)}>
+                    <SelectTrigger className="w-full border-2 border-primary/70 hover:border-primary data-[state=open]:border-primary focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="CSV">CSV (.csv)</SelectItem>
+                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Export preview */}
+                <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{exportPreviewCount}</span>{" "}
+                  row{exportPreviewCount === 1 ? "" : "s"} will be exported
+                  {exportPreset !== "FOLLOW_FILTER" && !submittedCol ? (
+                    <span className="ml-2 text-amber-600">
+                      • Preset ranges need the “Submitted” column
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               <AlertDialogFooter className="mt-2">
@@ -607,6 +840,7 @@ function DataTable<T extends Record<string, unknown>>({
                     setExportOpen(false);
                     setTimeout(() => setConfirmOpen(true), 10);
                   }}
+                  disabled={exportPreviewCount === 0}
                 >
                   Continue
                 </AlertDialogAction>
@@ -620,8 +854,9 @@ function DataTable<T extends Record<string, unknown>>({
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirm export</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to export data for{" "}
-                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span>?
+                  Are you sure you want to export{" "}
+                  <span className="font-medium">{PRESET_LABEL[exportPreset]}</span> as{" "}
+                  <span className="font-medium">{FORMAT_LABEL[exportFormat]}</span>?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -629,10 +864,25 @@ function DataTable<T extends Record<string, unknown>>({
                 <AlertDialogAction
                   onClick={() => {
                     const list = rowsForExport();
-                    const csv = buildCSVFor(list);
-                    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "");
-                    const slug = presetSlug(exportPreset);
-                    downloadCSV(`review-queue-${slug}-${ts}.csv`, csv);
+
+                    // Manila-friendly doc title & labels
+                    const nowPH = currentDatePH();
+                    const displayDate = formatDisplayDatePH(nowPH);
+                    const shortRange = presetTitleShort(exportPreset);
+                    const docTitle = `${exportTitle} (${shortRange}) ${displayDate}`;
+                    const rangeLabel = PRESET_LABEL[exportPreset];
+
+                    if (exportFormat === "CSV") {
+                      const csv = buildCSVFor(list);
+                      const fileName = `${slugify(exportTitle)}-${presetSlug(exportPreset)}-${formatFileDate(
+                        nowPH
+                      )}.csv`;
+                      downloadCSV(fileName, csv);
+                    } else {
+                      openPrintableTable(list, docTitle, rangeLabel);
+                    }
+
+                    setConfirmOpen(false);
                   }}
                 >
                   Yes, export
@@ -688,7 +938,7 @@ function DataTable<T extends Record<string, unknown>>({
                 >
                   {visibleColumns.map((c) => {
                     const raw = c.accessor(row);
-                    const isLink = c.id === "diff_link" && renderLinkCell;
+                    const isLink = (c.id as string) === "diff_link" && renderLinkCell;
                     const content = isLink ? (
                       renderLinkCell!(row)
                     ) : c.formatter ? (
@@ -731,9 +981,7 @@ function DataTable<T extends Record<string, unknown>>({
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div>
           Showing{" "}
-          <span className="font-medium text-foreground">
-            {total === 0 ? 0 : start + 1}–{end}
-          </span>{" "}
+          <span className="font-medium text-foreground">{total === 0 ? 0 : start + 1}–{end}</span>{" "}
           of <span className="font-medium text-foreground">{total}</span>
         </div>
         <div className="flex items-center gap-1">
@@ -807,7 +1055,11 @@ function SeverityBadge({ s }: { s: Severity }) {
 
 function ChangeTypeBadge({ t }: { t: ChangeType }) {
   const label = t.replace(/_/g, " ");
-  return <Badge variant="outline" className="uppercase">{label}</Badge>;
+  return (
+    <Badge variant="outline" className="uppercase">
+      {label}
+    </Badge>
+  );
 }
 
 function DiffTable({ diffs }: { diffs: DiffRow[] }) {
@@ -826,10 +1078,7 @@ function DiffTable({ diffs }: { diffs: DiffRow[] }) {
           </TableHeader>
           <TableBody>
             {diffs.map((d, idx) => (
-              <TableRow
-                key={`${d.question_key}-${idx}`}
-                className={cn("odd:bg-muted/30 even:bg-card")}
-              >
+              <TableRow key={`${d.question_key}-${idx}`} className={cn("odd:bg-muted/30 even:bg-card")}>
                 <TableCell className="align-top py-3">
                   <div className="flex items-center gap-2">
                     <ChangeTypeBadge t={d.change_type} />
@@ -840,11 +1089,7 @@ function DiffTable({ diffs }: { diffs: DiffRow[] }) {
                 </TableCell>
                 <TableCell className="align-top py-3">
                   <div className="space-y-1">
-                    <EllipsizedWithTooltip
-                      text={d.before}
-                      className=" font-mono text-xs leading-relaxed"
-                      side="bottom"
-                    />
+                    <EllipsizedWithTooltip text={d.before} className=" font-mono text-xs leading-relaxed" side="bottom" />
                     <div className="text-xs text-muted-foreground hidden md:block">
                       {formatWords(d.before)}
                     </div>
@@ -852,11 +1097,7 @@ function DiffTable({ diffs }: { diffs: DiffRow[] }) {
                 </TableCell>
                 <TableCell className="align-top py-3">
                   <div className="space-y-1">
-                    <EllipsizedWithTooltip
-                      text={d.after}
-                      className="font-mono text-xs leading-relaxed"
-                      side="bottom"
-                    />
+                    <EllipsizedWithTooltip text={d.after} className="font-mono text-xs leading-relaxed" side="bottom" />
                     <div className="text-xs text-muted-foreground hidden md:block">
                       {formatWords(d.after)}
                     </div>
@@ -879,48 +1120,150 @@ function DiffTable({ diffs }: { diffs: DiffRow[] }) {
    ========================================================================= */
 
 const SAMPLE_DATA: QueueRow[] = [
-  mkRow(1001, "Coffee Crave — Core CX", 4, 21, "Ana Santos", "2025-09-26T05:12:00Z", [
-    diff("PROMPT_CHANGED", "staff_service", `{"prompt":"How satisfied are you with our staff?"}`, `{"prompt":"How satisfied were you with the staff's friendliness today?"}`, "RISKY"),
-    diff("OPTION_LABEL_CHANGED", "order_accuracy", `["Very Accurate","Accurate","Slightly Off","Wrong"]`, `["Perfect","Good","Okay","Wrong"]`, "RISKY"),
-  ]),
+  mkRow(
+    1001,
+    "Coffee Crave — Core CX",
+    4,
+    21,
+    "Ana Santos",
+    "2025-09-26T05:12:00Z",
+    [
+      diff(
+        "PROMPT_CHANGED",
+        "staff_service",
+        `{"prompt":"How satisfied are you with our staff?"}`,
+        `{"prompt":"How satisfied were you with the staff's friendliness today?"}`,
+        "RISKY"
+      ),
+      diff(
+        "OPTION_LABEL_CHANGED",
+        "order_accuracy",
+        `["Very Accurate","Accurate","Slightly Off","Wrong"]`,
+        `["Perfect","Good","Okay","Wrong"]`,
+        "RISKY"
+      ),
+    ]
+  ),
   mkRow(1002, "Drinks Quality — Seasonal", 2, 34, "Miguel Reyes", "2025-09-25T14:45:00Z", [
     diff("ADDED_QUESTION", "new_syrup_pref", "—", `{"key":"new_syrup_pref","type":"YES_NO","required":false}`, "SAFE"),
     diff("REQUIRED_CHANGED", "drink_temp", `{"required":false}`, `{"required":true}`, "RISKY"),
   ]),
-  mkRow(1003, "Operations — Speed & Cleanliness", 3, 17, "Lara Cruz", "2025-09-25T10:20:00Z", [
-    diff("PROMPT_CHANGED", "cleanliness", `{"prompt":"Was the store clean?"}`, `{"prompt":"How clean was the store?"}`, "SAFE"),
-  ]),
-  mkRow(1004, "Loyalty & Revisit Intent", 5, 11, "Paolo Dizon", "2025-09-24T23:02:00Z", [
-    diff("OPTION_VALUE_CHANGED", "revisit_intent", `{"YES":1,"NO":0}`, `{"YES":"Y","NO":"N"}`, "BLOCKER"),
-  ]),
-  mkRow(1005, "Food Quality — Bakery Items", 2, 28, "Jessa Lim", "2025-09-24T16:18:00Z", [
-    diff("OPTION_LABEL_CHANGED", "food_quality", `["Excellent","Good","Fair","Poor"]`, `["Great","Good","Fair","Poor"]`, "SAFE"),
-    diff("PROMPT_CHANGED", "food_temp", `{"prompt":"Was your food served hot?"}`, `{"prompt":"Was your food hot/warm enough?"}`, "SAFE"),
-  ]),
-  mkRow(1006, "Order Flow — Counter vs App", 3, 33, "Noel Tan", "2025-09-24T09:11:00Z", [
-    diff("REMOVED_QUESTION", "app_bug_report", `{"type":"TEXT","required":false}`, "—", "SAFE"),
-  ]),
-  mkRow(1007, "Queue Experience — Lunch Rush", 4, 44, "Isa Manalo", "2025-09-23T21:40:00Z", [
-    diff("REQUIRED_CHANGED", "queue_time", `{"required":false}`, `{"required":true}`, "RISKY"),
-    diff("PROMPT_CHANGED", "queue_time", `{"prompt":"How long did you wait?"}`, `{"prompt":"How many minutes did you wait in line?"}`, "SAFE"),
-  ]),
-  mkRow(1008, "Packaging & Sustainability", 1, 25, "Rico Uy", "2025-09-23T13:55:00Z", [
-    diff("ADDED_QUESTION", "eco_packaging_optout", "—", `{"key":"eco_packaging_optout","type":"YES_NO","required":false}`, "SAFE"),
-  ]),
-  mkRow(1009, "Order Accuracy Deep Dive", 6, 52, "Trixie Ong", "2025-09-23T08:03:00Z", [
-    diff("OPTION_VALUE_CHANGED", "order_accuracy", `{"Perfect":3,"Good":2,"Okay":1,"Wrong":0}`, `{"Perfect":"3","Good":"2","Okay":"1","Wrong":"0"}`, "BLOCKER"),
-  ]),
-  mkRow(1010, "Ambience & Music", 2, 39, "Carlo Chua", "2025-09-22T18:20:00Z", [
-    diff("PROMPT_CHANGED", "music_volume", `{"prompt":"How's the music volume?"}`, `{"prompt":"Is the music volume comfortable?"}`, "SAFE"),
-  ]),
-  mkRow(1011, "Drive-thru Experience", 3, 41, "Grace Yu", "2025-09-22T12:27:00Z", [
-    diff("REQUIRED_CHANGED", "license_plate", `{"required":false}`, `{"required":true}`, "RISKY"),
-    diff("OPTION_LABEL_CHANGED", "staff_greeting", `["Great","Good","Okay","Poor"]`, `["Excellent","Good","Fair","Poor"]`, "SAFE"),
-  ]),
-  mkRow(1012, "Holiday Menu Readiness", 4, 16, "Benjie Ramos", "2025-09-21T22:49:00Z", [
-    diff("ADDED_QUESTION", "preorder_interest", "—", `{"key":"preorder_interest","type":"YES_NO","required":false}`, "SAFE"),
-    diff("OPTION_VALUE_CHANGED", "taste_profile", `{"Sweet":4,"Balanced":3,"Bitter":2}`, `{"Sweet":"4","Balanced":"3","Bitter":"2"}`, "BLOCKER"),
-  ]),
+  mkRow(
+    1003,
+    "Operations — Speed & Cleanliness",
+    3,
+    17,
+    "Lara Cruz",
+    "2025-09-25T10:20:00Z",
+    [diff("PROMPT_CHANGED", "cleanliness", `{"prompt":"Was the store clean?"}`, `{"prompt":"How clean was the store?"}`, "SAFE")]
+  ),
+  mkRow(
+    1004,
+    "Loyalty & Revisit Intent",
+    5,
+    11,
+    "Paolo Dizon",
+    "2025-09-24T23:02:00Z",
+    [diff("OPTION_VALUE_CHANGED", "revisit_intent", `{"YES":1,"NO":0}`, `{"YES":"Y","NO":"N"}`, "BLOCKER")]
+  ),
+  mkRow(
+    1005,
+    "Food Quality — Bakery Items",
+    2,
+    28,
+    "Jessa Lim",
+    "2025-09-24T16:18:00Z",
+    [
+      diff(
+        "OPTION_LABEL_CHANGED",
+        "food_quality",
+        `["Excellent","Good","Fair","Poor"]`,
+        `["Great","Good","Fair","Poor"]`,
+        "SAFE"
+      ),
+      diff("PROMPT_CHANGED", "food_temp", `{"prompt":"Was your food served hot?"}`, `{"prompt":"Was your food hot/warm enough?"}`, "SAFE"),
+    ]
+  ),
+  mkRow(
+    1006,
+    "Order Flow — Counter vs App",
+    3,
+    33,
+    "Noel Tan",
+    "2025-09-24T09:11:00Z",
+    [diff("REMOVED_QUESTION", "app_bug_report", `{"type":"TEXT","required":false}`, "—", "SAFE")]
+  ),
+  mkRow(
+    1007,
+    "Queue Experience — Lunch Rush",
+    4,
+    44,
+    "Isa Manalo",
+    "2025-09-23T21:40:00Z",
+    [
+      diff("REQUIRED_CHANGED", "queue_time", `{"required":false}`, `{"required":true}`, "RISKY"),
+      diff("PROMPT_CHANGED", "queue_time", `{"prompt":"How long did you wait?"}`, `{"prompt":"How many minutes did you wait in line?"}`, "SAFE"),
+    ]
+  ),
+  mkRow(
+    1008,
+    "Packaging & Sustainability",
+    1,
+    25,
+    "Rico Uy",
+    "2025-09-23T13:55:00Z",
+    [diff("ADDED_QUESTION", "eco_packaging_optout", "—", `{"key":"eco_packaging_optout","type":"YES_NO","required":false}`, "SAFE")]
+  ),
+  mkRow(
+    1009,
+    "Order Accuracy Deep Dive",
+    6,
+    52,
+    "Trixie Ong",
+    "2025-09-23T08:03:00Z",
+    [
+      diff(
+        "OPTION_VALUE_CHANGED",
+        "order_accuracy",
+        `{"Perfect":3,"Good":2,"Okay":1,"Wrong":0}`,
+        `{"Perfect":"3","Good":"2","Okay":"1","Wrong":"0"}`,
+        "BLOCKER"
+      ),
+    ]
+  ),
+  mkRow(
+    1010,
+    "Ambience & Music",
+    2,
+    39,
+    "Carlo Chua",
+    "2025-09-22T18:20:00Z",
+    [diff("PROMPT_CHANGED", "music_volume", `{"prompt":"How's the music volume?"}`, `{"prompt":"Is the music volume comfortable?"}`, "SAFE")]
+  ),
+  mkRow(
+    1011,
+    "Drive-thru Experience",
+    3,
+    41,
+    "Grace Yu",
+    "2025-09-22T12:27:00Z",
+    [
+      diff("REQUIRED_CHANGED", "license_plate", `{"required":false}`, `{"required":true}`, "RISKY"),
+      diff("OPTION_LABEL_CHANGED", "staff_greeting", `["Great","Good","Okay","Poor"]`, `["Excellent","Good","Fair","Poor"]`, "SAFE"),
+    ]
+  ),
+  mkRow(
+    1012,
+    "Holiday Menu Readiness",
+    4,
+    16,
+    "Benjie Ramos",
+    "2025-09-21T22:49:00Z",
+    [
+      diff("ADDED_QUESTION", "preorder_interest", "—", `{"key":"preorder_interest","type":"YES_NO","required":false}`, "SAFE"),
+      diff("OPTION_VALUE_CHANGED", "taste_profile", `{"Sweet":4,"Balanced":3,"Bitter":2}`, `{"Sweet":"4","Balanced":"3","Bitter":"2"}`, "BLOCKER"),
+    ]
+  ),
 ];
 
 /* helpers to build sample rows */
@@ -940,7 +1283,7 @@ function mkRow(
     submitted_by_id: adminId,
     submitted_by_name: adminName,
     submitted_for_review_at: submittedAtISO,
-    changes_count: diffs.length,
+    changes_count: diffs.length, // kept for data completeness
     diff_link: `/super/reviews/${id}/diff`,
     diffs,
     diff_keys_joined: diffs.map((d) => d.question_key).join(" "),
@@ -980,10 +1323,7 @@ function ActionBanner({ receipt }: { receipt: ActionReceipt | null }) {
     <div
       role="status"
       aria-live="polite"
-      className={cn(
-        "mb-3 rounded-md border px-3 py-2 text-sm flex flex-col gap-1",
-        base
-      )}
+      className={cn("mb-3 rounded-md border px-3 py-2 text-sm flex flex-col gap-1", base)}
     >
       <div className="flex items-center gap-2">
         {icon}
@@ -996,16 +1336,12 @@ function ActionBanner({ receipt }: { receipt: ActionReceipt | null }) {
           {receipt.action === "PUBLISH_NOW" ? (
             <>
               Published now • Effective now •{" "}
-              <span className="font-medium">
-                {formatDatePH(receipt.published_at ?? null)}
-              </span>
+              <span className="font-medium">{formatDatePH(receipt.published_at ?? null)}</span>
             </>
           ) : (
             <>
               Scheduled publish • Effective at{" "}
-              <span className="font-medium">
-                {formatDatePH(receipt.effective_at ?? null)}
-              </span>
+              <span className="font-medium">{formatDatePH(receipt.effective_at ?? null)}</span>
             </>
           )}
         </div>
@@ -1064,8 +1400,7 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
   );
 
   // queue helper
-  const removeFromQueue = (id: number) =>
-    setRows((prev) => prev.filter((r) => r.survey_id !== id));
+  const removeFromQueue = (id: number) => setRows((prev) => prev.filter((r) => r.survey_id !== id));
 
   // ACTIONS (client-only simulation)
 
@@ -1142,14 +1477,11 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
           columns={QUEUE_COLUMNS}
           defaultSort={{ id: "submitted_for_review_at", dir: "desc" }}
           highlightRows={highlightRows}
-          searchKeys={[
-            "survey_id",
-            "title",
-            "submitted_by_name",
-            "diff_keys_joined",
-            "version",
-          ]}
+          searchKeys={["survey_id", "title", "submitted_by_name", "diff_keys_joined", "version"]}
           renderLinkCell={renderLinkCell}
+          // sensible default: don't export the "Diff" link column
+          exportExcludeColumns={["diff_link"]}
+          exportTitle="Review Queue"
         />
       </CardContent>
 
@@ -1163,16 +1495,16 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
       >
         <DialogContent className="max-w-6xl w-[98vw] max-h-[88vh] p-0 overflow-hidden flex flex-col">
           <DialogHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b px-4 py-4">
-            <DialogTitle className="text-base sm:text-lg">  
-              Compare Draft vs Published
-            </DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Compare Draft vs Published</DialogTitle>
             <DialogDescription className="text-sm">
               <span className="mr-2">
                 Survey <span className="font-medium">{selected?.survey_id ?? "—"}</span> •{" "}
                 <span className="font-medium">{selected?.title ?? "—"}</span>
               </span>
               {selected?.version != null && (
-                <Badge variant="outline" className="align-middle">v{selected.version}</Badge>
+                <Badge variant="outline" className="align-middle">
+                  v{selected.version}
+                </Badge>
               )}
               <span className="ml-2 text-muted-foreground">
                 Submitted {selected ? formatDatePH(selected.submitted_for_review_at) : "—"} by{" "}
@@ -1204,11 +1536,7 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
               {/* Approve → Schedule */}
               <ScheduleButton onConfirm={(when) => approveSchedule(when)} />
               {/* Approve → Publish now */}
-              <Button
-                onClick={approvePublishNow}
-                className="btn-halo btn-halo--emph"
-                aria-label="Approve and publish now"
-              >
+              <Button onClick={approvePublishNow} className="btn-halo btn-halo--emph" aria-label="Approve and publish now">
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Approve → Publish now
               </Button>
@@ -1224,20 +1552,12 @@ export default function ReviewQueue({ highlightRows = true }: ReviewQueueProps) 
    Action Dialog Buttons (mock implementations)
    ========================================================================= */
 
-function RejectWithNoteButton({
-  onConfirm,
-}: {
-  onConfirm: (note: string) => void;
-}) {
+function RejectWithNoteButton({ onConfirm }: { onConfirm: (note: string) => void }) {
   const [open, setOpen] = React.useState(false);
   const [note, setNote] = React.useState("");
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        variant="outline"
-        onClick={() => setOpen(true)}
-        aria-label="Reject with note"
-      >
+      <Button variant="outline" onClick={() => setOpen(true)} aria-label="Reject with note">
         <CircleSlash2 className="mr-2 h-4 w-4" />
         Reject with note
       </Button>
@@ -1281,11 +1601,7 @@ function RejectWithNoteButton({
   );
 }
 
-function ScheduleButton({
-  onConfirm,
-}: {
-  onConfirm: (effectiveLocalISO: string) => void;
-}) {
+function ScheduleButton({ onConfirm }: { onConfirm: (effectiveLocalISO: string) => void }) {
   const [open, setOpen] = React.useState(false);
   const [when, setWhen] = React.useState<string>("");
 
@@ -1301,11 +1617,7 @@ function ScheduleButton({
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        variant="default"
-        onClick={() => setOpen(true)}
-        aria-label="Approve and schedule"
-      >
+      <Button variant="default" onClick={() => setOpen(true)} aria-label="Approve and schedule">
         <Calendar className="mr-2 h-4 w-4" />
         Approve → Schedule
       </Button>

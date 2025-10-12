@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @tailwind utilities;
 
-/* html { font-size: 18px; } */
+/* html { font-size: 16px; } */
 
 @custom-variant dark (&:is(.dark *));
 

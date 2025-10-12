@@ -65,7 +65,8 @@ export function UnsavedChangesProvider({
     reason: UnsavedReason;
   } | null>(null);
 
-  const resolverRef = React.useRef<(value: boolean) => void>();
+  // FIX: initialize with null and include null in the type
+  const resolverRef = React.useRef<((value: boolean) => void) | null>(null);
   const suppressPopRef = React.useRef(false);
   const stablePathRef = React.useRef<string>(
     typeof window !== "undefined" ? currentPathnameWithSearch() : ""
@@ -78,7 +79,7 @@ export function UnsavedChangesProvider({
 
   const closeDialog = React.useCallback((result: boolean) => {
     const resolver = resolverRef.current;
-    resolverRef.current = undefined;
+    resolverRef.current = null; // FIX: reset to null, not undefined
     setDialog(null);
     if (resolver) resolver(result);
   }, []);
@@ -107,7 +108,7 @@ export function UnsavedChangesProvider({
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!isDirty) return;
       event.preventDefault();
-      event.returnValue = "";
+      (event as any).returnValue = ""; // some browsers require explicit assignment
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);

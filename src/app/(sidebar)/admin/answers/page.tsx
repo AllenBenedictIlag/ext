@@ -1,6 +1,6 @@
 import AnswerDensity from "@/components/admin/answers/answer-density";
 import AnswerDistribution from "@/components/admin/answers/answer-distribution";
-import AnswersTable from "@/components/admin/answers/answers-table";
+import AnswersTable from "@/components/tables/answers-table";
 
 export default function AnswersPage(){
     return (

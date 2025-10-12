@@ -9,7 +9,7 @@ import { ModeToggle } from "@/components/ui/theme-button";
 export default function FeedbackAuthForm() {
   return (
     <main className="relative min-h-dvh bg-background text-foreground">
-      <div className="absolute right-3 top-3 z-50">
+      <div className="absolute right-6 top-6 z-50">
         <ModeToggle />
       </div>
       <div className="mx-auto grid w-full max-w-6xl min-h-dvh grid-cols-1 gap-8 px-4 py-8 md:grid-cols-[minmax(270px,390px)_1fr] md:gap-10 md:px-6 lg:px-8">

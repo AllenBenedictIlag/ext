@@ -1,4 +1,4 @@
-import ReceiptsTable from "@/components/admin/receipts/receipts-table";
+import ReceiptsTable from "@/components/tables/receipts-table";
 import FeedbackFunnel from "@/components/admin/statistics/feedback-funnel";
 import MonthlyTrend from "@/components/admin/statistics/monthly-trend";
 
