@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "../ui/input";
-import { SiteFooter } from "./site-footer";
 
 // ---------- NEW: DTOs from /api/surveys/current ----------
 type OptionDTO = {
@@ -279,7 +278,11 @@ export default function FeedbackForm({
             ),
           });
         } else if (q.question_type === "LIKERT") {
-          const opts = [...q.options].sort((a, b) => (a.option_value > b.option_value ? 1 : -1));
+          // REVERSED ORDER: show highest (e.g., "Extremely Satisfied") first
+          const opts = [...q.options].sort(
+            (a, b) => Number(b.option_value) - Number(a.option_value)
+          );
+
           base.push({
             key: q.question_key,
             type: "likert",
@@ -290,7 +293,8 @@ export default function FeedbackForm({
             render: (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {opts.map((o) => {
-                  const em = (LIKERT_EMOJIS as any)[o.option_value as LikertValue]?.emoji ?? "🙂";
+                  const em =
+                    (LIKERT_EMOJIS as any)[o.option_value as LikertValue]?.emoji ?? "🙂";
                   return (
                     <EmojiTile
                       key={o.id}
@@ -318,13 +322,13 @@ export default function FeedbackForm({
                   {q.prompt}
                 </Label>
                 <Textarea
-                  key={`text-${q.id}`}                 // NEW: prevent DOM reuse
+                  key={`text-${q.id}`} // NEW: prevent DOM reuse
                   id={`text-${q.id}`}
                   placeholder="Type your answer here…"
                   rows={5}
                   className="h-40 max-h-40 w-full resize-none border-2 border- overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words break-all"
                   style={{ overflowWrap: "anywhere" }}
-                  value={data.answers[q.question_key] ?? ""}    // NEW: controlled
+                  value={data.answers[q.question_key] ?? ""} // NEW: controlled
                   onChange={(e) => setAnswer(q.question_key, e.target.value)}
                 />
                 {q.help_text && (
@@ -347,12 +351,12 @@ export default function FeedbackForm({
                   {q.prompt}
                 </Label>
                 <Input
-                className="border-2 border-"
-                  key={`short-${q.id}`}                         // NEW
+                  className="border-2 border-"
+                  key={`short-${q.id}`} // NEW
                   id={`short-${q.id}`}
                   type="text"
                   placeholder="Your answer…"
-                  value={data.answers[q.question_key] ?? ""}    // controlled
+                  value={data.answers[q.question_key] ?? ""} // controlled
                   onChange={(e) => setAnswer(q.question_key, e.target.value)}
                 />
                 {q.help_text && (
@@ -489,7 +493,7 @@ export default function FeedbackForm({
       <Dialog open={usedOpen} onOpenChange={setUsedOpen}>
         <DialogContent className="max-w-3xl p-0">
           <div className="flex max-h-[85vh] flex-col">
-            {/* Sticky Header (with extra line you asked to keep sticky) */}
+            {/* Sticky Header */}
             <div className="sticky top-0 z-10 border-b bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
               <DialogHeader className="p-0">
                 <DialogTitle className="text-base leading-tight">Thank you 🙌</DialogTitle>
@@ -616,7 +620,7 @@ export default function FeedbackForm({
 
         <div className="sticky bottom-0 -mx-32 py-3 px-6 backdrop-blur">
           <div className="mx-auto flex max-w-4xl justify-between px-8">
-            <Button type="button" onClick={onPrevious} disabled={step === 1} className="btn-halo">
+            <Button type="button" onClick={onPrevious} disabled={step === 1} className="btn-halo h-12 px-6 text-base rounded-xl">
               Previous
             </Button>
 
@@ -631,7 +635,7 @@ export default function FeedbackForm({
                   ? "Open the thank-you popup"
                   : undefined
               }
-              className="btn-halo btn-halo--emph"
+              className="btn-halo h-12 px-6 text-base rounded-xl"
             >
               {step === total ? "Submit" : "Continue"}
             </Button>
@@ -639,7 +643,6 @@ export default function FeedbackForm({
         </div>
       </form>
     </>
-    
   );
 }
 

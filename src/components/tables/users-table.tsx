@@ -54,7 +54,7 @@ import {
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*  LIGHT OVERLAY MODALS                                                      */
+/*  LIGHT OVERLAY MODALS (Radix wrappers with non-blocking close)             */
 /* -------------------------------------------------------------------------- */
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -78,7 +78,9 @@ const LA = {
           className={cn(
             "fixed inset-0 z-50 bg-background/70 backdrop-blur-sm",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
+            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+            // IMPORTANT: don't intercept clicks while closing
+            "data-[state=closed]:pointer-events-none"
           )}
         />
         <AlertDialogPrimitive.Content
@@ -117,7 +119,9 @@ const LD = {
             "fixed inset-0 z-50",
             modal ? "bg-background/70 backdrop-blur-sm" : "bg-transparent",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
+            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+            // IMPORTANT: don't intercept clicks while closing
+            "data-[state=closed]:pointer-events-none"
           )}
         />
         <DialogPrimitive.Content
@@ -173,7 +177,7 @@ type DataTableProps<T extends Record<string, unknown>> = {
   getRowKey?: (row: T, absoluteIndex: number) => React.Key;
   rightActions?: React.ReactNode;
   renderExportConfirm?: (opts: { open: boolean; setOpen: (v: boolean) => void; onConfirm: () => void }) => React.ReactNode;
-  /** NEW: per-row actions rendered into the last cell */
+  /** Per-row actions rendered into the last cell */
   renderActions?: (row: T) => React.ReactNode;
 };
 
@@ -207,8 +211,9 @@ function getCell<T extends Record<string, unknown>, K extends keyof T & string>(
   id: K
 ): unknown {
   const col = cols.find((c) => c.id === id);
-  return col ? col.accessor(row) : undefined;
+  return col ? col.accessor(row) : undefined; // <-- use `col`, not `c`
 }
+
 
 function EllipsizedWithTooltip({
   text,
@@ -493,7 +498,7 @@ function DataTable<T extends Record<string, unknown>>({
       resource: "users",
       format: "csv",
       rowCount: pageRows.length,
-      columns: visibleColumns.map((c) => c.id),
+      columns: visibleColumns.map((c) => String(c.id)), // instead of just c.id
       query,
     });
   };
@@ -819,7 +824,7 @@ export type UsersTableProps = {
 export default function UsersTable({ highlightRows = true }: UsersTableProps) {
   const [inviteOpen, setInviteOpen] = React.useState(false);
 
-  // unified confirm
+  // unified confirm state
   const [confirm, setConfirm] = React.useState<{
     kind: "status" | "role" | "reset" | "revoke";
     row: Row | null;
@@ -828,6 +833,11 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
 
   const [busy, setBusy] = React.useState(false);
   const [tempShown, setTempShown] = React.useState<string | null>(null);
+
+  // Helper: open dialog after dropdown has fully closed (prevents frozen UI)
+  const openAfterMenuClose = (fn: () => void) => () => {
+    setTimeout(fn, 0);
+  };
 
   async function doPost(payload: object) {
     setBusy(true);
@@ -999,7 +1009,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                   rightActions={rightActions}
                   renderExportConfirm={({ open, setOpen, onConfirm }) => (
                     <LA.Root open={open} onOpenChange={setOpen}>
-                      <LA.Content>
+                      <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
                         <div className="space-y-2">
                           <LA.Title className="text-lg font-semibold">
                             Export visible rows?
@@ -1031,29 +1041,55 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                       <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuLabel>Manage user</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setConfirm({ kind: "role", row: r, next: "ADMIN" })}>
+                        <DropdownMenuItem
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "role", row: r, next: "ADMIN" })
+                          )}
+                        >
                           Set role: Admin
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setConfirm({ kind: "role", row: r, next: "SUPER_ADMIN" })}>
+                        <DropdownMenuItem
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "role", row: r, next: "SUPER_ADMIN" })
+                          )}
+                        >
                           Set role: Super Admin
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setConfirm({ kind: "status", row: r, next: "ACTIVE" })}>
+                        <DropdownMenuItem
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "status", row: r, next: "ACTIVE" })
+                          )}
+                        >
                           Mark Active
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setConfirm({ kind: "status", row: r, next: "INACTIVE" })}>
+                        <DropdownMenuItem
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "status", row: r, next: "INACTIVE" })
+                          )}
+                        >
                           Mark Inactive
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setConfirm({ kind: "status", row: r, next: "SUSPENDED" })}>
+                        <DropdownMenuItem
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "status", row: r, next: "SUSPENDED" })
+                          )}
+                        >
                           Mark Suspended
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setConfirm({ kind: "reset", row: r })}>
+                        <DropdownMenuItem
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "reset", row: r })
+                          )}
+                        >
                           Reset password
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => setConfirm({ kind: "revoke", row: r })}
+                          onSelect={openAfterMenuClose(() =>
+                            setConfirm({ kind: "revoke", row: r })
+                          )}
                         >
                           Revoke access (suspend + logout)
                         </DropdownMenuItem>
@@ -1074,7 +1110,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                   open={!!confirm.row}
                   onOpenChange={(o) => !o && setConfirm({ kind: "status", row: null })}
                 >
-                  <LA.Content>
+                  <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
                     <div className="space-y-2">
                       <LA.Title className="text-lg font-semibold">
                         {confirm.kind === "status" && `Change status to ${confirm.next}`}
