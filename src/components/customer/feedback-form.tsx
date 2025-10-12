@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "../ui/input";
+import { SiteFooter } from "./site-footer";
 
 // ---------- NEW: DTOs from /api/surveys/current ----------
 type OptionDTO = {
@@ -83,8 +84,8 @@ function ProgressHeader({ current, total }: { current: number; total: number }) 
   const activeIdx = clamped - 1;
 
   return (
-    <div className="sticky top-0 z-10 -mx-32 bg-sidebar/80 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-sidebar/60">
-      <div className="mx-auto w-full max-w-4xl rounded-md p-3 bg-sidebar/40">
+    <div className="sticky top-0 z-10 -mx-32 bg-background px-4 py-4 backdrop-blur ">
+      <div className="mx-auto w-full max-w-4xl rounded-md p-3 bg-background">
         <div className="mb-2 text-base font-medium text-foreground">
           <span className="tabular-nums">{clamped}</span> of{" "}
           <span className="tabular-nums">{total}</span>
@@ -613,7 +614,7 @@ export default function FeedbackForm({
           </div>
         </Card>
 
-        <div className="sticky bottom-0 -mx-32 py-3 px-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar">
+        <div className="sticky bottom-0 -mx-32 py-3 px-6 backdrop-blur">
           <div className="mx-auto flex max-w-4xl justify-between px-8">
             <Button type="button" onClick={onPrevious} disabled={step === 1} className="btn-halo">
               Previous
@@ -638,6 +639,7 @@ export default function FeedbackForm({
         </div>
       </form>
     </>
+    
   );
 }
 

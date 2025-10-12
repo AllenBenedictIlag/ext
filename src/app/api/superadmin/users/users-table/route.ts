@@ -1,3 +1,4 @@
+// src/app/api/superadmin/users/users-table/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -62,7 +63,17 @@ type ResetPasswordBody = {
   admin_id: number;
 };
 
-type PostBody = InviteBody | UpdateStatusBody | ChangeRoleBody | ResetPasswordBody;
+type RevokeAccessBody = {
+  action: "revoke_access";
+  admin_id: number;
+};
+
+type PostBody =
+  | InviteBody
+  | UpdateStatusBody
+  | ChangeRoleBody
+  | ResetPasswordBody
+  | RevokeAccessBody;
 
 export async function GET(req: NextRequest) {
   try {
@@ -257,6 +268,34 @@ export async function POST(req: NextRequest) {
           { ok: true, admin_id: body.admin_id, temp_password: temp },
           { status: 200 }
         );
+      }
+
+      case "revoke_access": {
+        // 1) Suspend
+        const sql = `UPDATE admins SET status = 'SUSPENDED' WHERE id = ?`;
+        const [res] = await pool.query<ResultSetHeader>(sql, [body.admin_id]);
+        if (res.affectedRows === 0) {
+          return NextResponse.json({ ok: false }, { status: 404 });
+        }
+
+        // 2) Best-effort sign out all sessions (ignore if table doesn't exist)
+        try {
+          await pool.query("DELETE FROM admin_sessions WHERE admin_id = ?", [body.admin_id]);
+        } catch {
+          // ignored
+        }
+
+        const row = await selectOne(body.admin_id);
+
+        await recordAuditEvent({
+          req,
+          action: "ROLE_CHANGE",
+          targetType: "admin",
+          targetId: body.admin_id,
+          notes: `Revoked access for admin ${body.admin_id} (set SUSPENDED + logout all)`,
+        });
+
+        return NextResponse.json({ ok: true, data: row }, { status: 200 });
       }
 
       default:

@@ -1,4 +1,4 @@
-// src\components\superadmin\users\users-table.tsx
+// src/components/superadmin/users/users-table.tsx
 "use client";
 
 import * as React from "react";
@@ -54,9 +54,7 @@ import {
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*  LIGHT OVERLAY MODALS (local wrappers using Radix primitives)              */
-/*  This gives you the softer overlay from the screenshot without changing    */
-/*  shadcn/ui source files.                                                   */
+/*  LIGHT OVERLAY MODALS                                                      */
 /* -------------------------------------------------------------------------- */
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -89,7 +87,8 @@ const LA = {
             "fixed left-1/2 top-1/2 z-50 grid w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2",
             "gap-4 rounded-lg border bg-card p-6 shadow-lg",
             "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+            "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
+            className
           )}
           {...props}
         />
@@ -172,10 +171,10 @@ type DataTableProps<T extends Record<string, unknown>> = {
   highlightRows?: boolean;
   searchKeys?: (keyof T & string)[];
   getRowKey?: (row: T, absoluteIndex: number) => React.Key;
-  /** extra actions rendered right-aligned in the control row */
   rightActions?: React.ReactNode;
-  /** confirm UI hook for CSV export (so we can use the light overlay) */
   renderExportConfirm?: (opts: { open: boolean; setOpen: (v: boolean) => void; onConfirm: () => void }) => React.ReactNode;
+  /** NEW: per-row actions rendered into the last cell */
+  renderActions?: (row: T) => React.ReactNode;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -353,6 +352,7 @@ function DataTable<T extends Record<string, unknown>>({
   getRowKey,
   rightActions,
   renderExportConfirm,
+  renderActions,
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState<string>("");
   const [pageSize, setPageSize] = React.useState<number>(10);
@@ -434,7 +434,26 @@ function DataTable<T extends Record<string, unknown>>({
   const toggleCol = (id: string) =>
     setVisibility((v) => ({ ...v, [id]: !v[id] }));
 
-  const doExport = () => {
+  // ---- Export (and audit log)
+  async function logExport(meta: {
+    resource: string;
+    format: string;
+    rowCount: number;
+    columns: string[];
+    query: string;
+  }) {
+    try {
+      await fetch("/api/superadmin/audit/log-export", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(meta),
+      });
+    } catch {
+      // non-blocking
+    }
+  }
+
+  const doExport = async () => {
     const headers = visibleColumns.map((c) => c.header);
     const rows = pageRows.map((row) =>
       visibleColumns.map((c) => {
@@ -468,6 +487,15 @@ function DataTable<T extends Record<string, unknown>>({
     a.download = `users-visible-${ts}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+
+    // audit
+    void logExport({
+      resource: "users",
+      format: "csv",
+      rowCount: pageRows.length,
+      columns: visibleColumns.map((c) => c.id),
+      query,
+    });
   };
 
   return (
@@ -551,7 +579,7 @@ function DataTable<T extends Record<string, unknown>>({
             open: exportOpen,
             setOpen: setExportOpen,
             onConfirm: () => {
-              doExport();
+              void doExport();
               setExportOpen(false);
             },
           })}
@@ -564,31 +592,33 @@ function DataTable<T extends Record<string, unknown>>({
           <Table className="table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                {visibleColumns.map((c) => (
-                  <TableHead
-                    key={c.id}
-                    style={c.width ? { width: c.width } : undefined}
-                    className={cn(
-                      "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75",
-                      c.align === "right" && "text-right",
-                      c.align === "center" && "text-center"
-                    )}
-                  >
-                    <button
-                      onClick={() => onHeaderClick(c)}
+                {columns
+                  .filter((c) => visibility[c.id])
+                  .map((c) => (
+                    <TableHead
+                      key={c.id}
+                      style={c.width ? { width: c.width } : undefined}
                       className={cn(
-                        "flex w-full items-center gap-1 text-left",
-                        c.align === "right" && "justify-end",
-                        c.align === "center" && "justify-center",
-                        c.sortable ? "cursor-pointer select-none" : "cursor-default"
+                        "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75",
+                        c.align === "right" && "text-right",
+                        c.align === "center" && "text-center"
                       )}
-                      aria-label={`Sort by ${c.header}`}
                     >
-                      <span>{c.header}</span>
-                      {c.sortable && <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />}
-                    </button>
-                  </TableHead>
-                ))}
+                      <button
+                        onClick={() => onHeaderClick(c)}
+                        className={cn(
+                          "flex w-full items-center gap-1 text-left",
+                          c.align === "right" && "justify-end",
+                          c.align === "center" && "justify-center",
+                          c.sortable ? "cursor-pointer select-none" : "cursor-default"
+                        )}
+                        aria-label={`Sort by ${c.header}`}
+                      >
+                        <span>{c.header}</span>
+                        {c.sortable && <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />}
+                      </button>
+                    </TableHead>
+                  ))}
                 {/* actions column */}
                 <TableHead className="w-[64px]" />
               </TableRow>
@@ -608,40 +638,42 @@ function DataTable<T extends Record<string, unknown>>({
                       highlightRows && "bg-[hsl(var(--chart-1)/0.30)]/10"
                     )}
                   >
-                    {visibleColumns.map((c) => {
-                      const raw = c.accessor(row);
-                      const content = c.formatter ? (
-                        c.formatter(raw, row)
-                      ) : (
-                        <span
-                          className={cn(
-                            "block truncate",
-                            c.align === "right" && "text-right",
-                            c.align === "center" && "text-center"
-                          )}
-                          title={raw == null ? "" : String(raw)}
-                        >
-                          {String(raw ?? "")}
-                        </span>
-                      );
-                      return (
-                        <TableCell
-                          key={c.id}
-                          className={cn(
-                            "align-middle",
-                            c.align === "right" && "text-right",
-                            c.align === "center" && "text-center"
-                          )}
-                          style={c.width ? { width: c.width } : undefined}
-                        >
-                          {content}
-                        </TableCell>
-                      );
-                    })}
+                    {columns
+                      .filter((c) => visibility[c.id])
+                      .map((c) => {
+                        const raw = c.accessor(row);
+                        const content = c.formatter ? (
+                          c.formatter(raw, row)
+                        ) : (
+                          <span
+                            className={cn(
+                              "block truncate",
+                              c.align === "right" && "text-right",
+                              c.align === "center" && "text-center"
+                            )}
+                            title={raw == null ? "" : String(raw)}
+                          >
+                            {String(raw ?? "")}
+                          </span>
+                        );
+                        return (
+                          <TableCell
+                            key={c.id}
+                            className={cn(
+                              "align-middle",
+                              c.align === "right" && "text-right",
+                              c.align === "center" && "text-center"
+                            )}
+                            style={c.width ? { width: c.width } : undefined}
+                          >
+                            {content}
+                          </TableCell>
+                        );
+                      })}
 
-                    {/* Actions cell (dropdown trigger provided by parent via render prop? We'll place a slot) */}
+                    {/* Actions cell */}
                     <TableCell className="align-middle text-right">
-                      {/* Placeholder; parent will absolutely position the dropdown via renderActions prop */}
+                      {renderActions?.(row)}
                     </TableCell>
                   </TableRow>
                 );
@@ -787,9 +819,9 @@ export type UsersTableProps = {
 export default function UsersTable({ highlightRows = true }: UsersTableProps) {
   const [inviteOpen, setInviteOpen] = React.useState(false);
 
-  // unified confirm state (kept OUTSIDE the dropdown to avoid stacking/focus issues)
+  // unified confirm
   const [confirm, setConfirm] = React.useState<{
-    kind: "status" | "role" | "reset";
+    kind: "status" | "role" | "reset" | "revoke";
     row: Row | null;
     next?: string;
   }>({ kind: "status", row: null, next: undefined });
@@ -817,7 +849,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
       <CardHeader>
         <CardTitle className="tracking-normal">Users &amp; Roles (Super Admin)</CardTitle>
         <CardDescription>
-          Manage who can access Admin and Super Admin functions. Invite users, change roles, and control status.
+          Manage who can access Admin and Super Admin functions. Invite users, change roles, revoke access, and control status.
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">
@@ -989,6 +1021,45 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                       </LA.Content>
                     </LA.Root>
                   )}
+                  renderActions={(r) => (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Manage user</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setConfirm({ kind: "role", row: r, next: "ADMIN" })}>
+                          Set role: Admin
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirm({ kind: "role", row: r, next: "SUPER_ADMIN" })}>
+                          Set role: Super Admin
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setConfirm({ kind: "status", row: r, next: "ACTIVE" })}>
+                          Mark Active
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirm({ kind: "status", row: r, next: "INACTIVE" })}>
+                          Mark Inactive
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirm({ kind: "status", row: r, next: "SUSPENDED" })}>
+                          Mark Suspended
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setConfirm({ kind: "reset", row: r })}>
+                          Reset password
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setConfirm({ kind: "revoke", row: r })}
+                        >
+                          Revoke access (suspend + logout)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 />
 
                 {/* INVITE */}
@@ -998,12 +1069,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                   onInvited={refetch}
                 />
 
-                {/* ROW ACTIONS: rendered via a floating menu over the table using portals? 
-                    Simpler: we render a single, global confirm dialog and open it from a
-                    dropdown mounted per-row. The dropdown itself is inline below: */}
-                <div className="sr-only">actions handled per-row via dropdown</div>
-
-                {/* GLOBAL CONFIRM (light overlay, outside all dropdowns) */}
+                {/* GLOBAL CONFIRM */}
                 <LA.Root
                   open={!!confirm.row}
                   onOpenChange={(o) => !o && setConfirm({ kind: "status", row: null })}
@@ -1013,14 +1079,15 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                       <LA.Title className="text-lg font-semibold">
                         {confirm.kind === "status" && `Change status to ${confirm.next}`}
                         {confirm.kind === "role" &&
-                          `Change role to ${
-                            confirm.next === "SUPER_ADMIN" ? "Super Admin" : "Admin"
-                          }`}
+                          `Change role to ${confirm.next === "SUPER_ADMIN" ? "Super Admin" : "Admin"}`}
                         {confirm.kind === "reset" && `Reset password`}
+                        {confirm.kind === "revoke" && `Revoke access (suspend + logout)`}
                       </LA.Title>
                       <LA.Description className="text-sm text-muted-foreground">
                         {confirm.kind === "reset"
                           ? "A new temporary password will be generated."
+                          : confirm.kind === "revoke"
+                          ? "This will set status to SUSPENDED and attempt to sign out all active sessions."
                           : "This will update the selected user immediately."}
                       </LA.Description>
                     </div>
@@ -1055,6 +1122,11 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                               if (ok && (json as { temp_password?: string }).temp_password) {
                                 setTempShown((json as { temp_password: string }).temp_password);
                               }
+                            } else if (confirm.kind === "revoke") {
+                              await doPost({
+                                action: "revoke_access",
+                                admin_id: confirm.row.admin_id,
+                              });
                             }
                             setConfirm({ kind: "status", row: null });
                             await refetch();
@@ -1089,24 +1161,6 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                     </div>
                   </LA.Content>
                 </LA.Root>
-
-                {/* Per-row action menus: mounted after table so they don't interfere with header layout */}
-                <div className="relative -mt-6">
-                  {/* absolutely nothing here — the menus are inline with each row below via a portal? 
-                      For simplicity, we add them directly to each row using a small map. */}
-                </div>
-
-                {/* We render the per-row dropdowns as separate layer above the table footer 
-                    by mapping rows again, but only rendering the trigger where needed would
-                    complicate. Instead, simplest is to render the trigger inside the table.
-                    To do that without rewriting DataTable, we append the trigger using CSS
-                    : the last cell is reserved (empty) and we anchor a trigger absolutely.
-                    However, to keep your layout untouched, we'll render a floating menu bar
-                    aligned to each row using a negative margin. 
-                    
-                    Simpler approach: re-render the table rows above already left a blank cell.
-                    Let's overlay a set of positioned triggers: */}
-                <div className="pointer-events-none relative -top-[6000px] hidden" />
               </>
             );
           }}
@@ -1115,28 +1169,3 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
     </Card>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  ROW ACTION DROPDOWNS                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * NOTE:
- * The action dropdown trigger is rendered inside the DataTable rows earlier as a blank cell.
- * To keep the file focused and avoid duplicating the table just to inject the trigger,
- * you can adapt DataTable to accept `renderActions` and insert it into that last cell.
- * If you want that right now, replace the comment in the row actions cell with:
- *   {renderActions?.(row)}
- * and pass a function from the parent that renders the DropdownMenu with:
- *
- *   <DropdownMenu>
- *     <DropdownMenuTrigger asChild>
- *       <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
- *     </DropdownMenuTrigger>
- *     ...
- *   </DropdownMenu>
- *
- * And use `setConfirm({ ... })` to open the global confirm as shown above.
- *
- * The rest of the logic in this file already supports that pattern.
- */
