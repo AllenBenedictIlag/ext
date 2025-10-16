@@ -107,7 +107,7 @@ export default function RequiredCoverage() {
   const data = [{ name: "Coverage", track: 100, progress: empty ? 0 : percent, _full: full, _total: total }];
 
   return (
-    <Card className="md:col-span-2 h-120 rounded-xl border shadow-sm bg-card">
+    <Card className="md:col-span-2 h-100 rounded-xl border shadow-sm bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
           <CardTitle>Required Coverage</CardTitle>

@@ -94,6 +94,7 @@ function mondayOfWeekPH(d: Date): Date {
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function addMonths(d: Date, n: number) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
+function monthKey(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
 
 type Bucket = { key: string; axisLabel: string; tooltip: string };
 
@@ -134,7 +135,7 @@ function buildBuckets(fromYMD: string, toYMD: string, gran: Granularity): Bucket
     const endM   = startOfMonth(endPH);
     const out: Bucket[] = [];
     for (let d = new Date(startM); d <= endM; d = addMonths(d, 1)) {
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const key = monthKey(d);
       out.push({
         key,
         axisLabel: d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" }),
@@ -153,16 +154,31 @@ function buildBuckets(fromYMD: string, toYMD: string, gran: Granularity): Bucket
 
     const out: Bucket[] = [];
     for (let d = new Date(firstEnd); d <= endMonth; d = addMonths(d, 3)) {
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM of ENDING month
+      const key = monthKey(d); // YYYY-MM of ENDING month
       const from3 = addMonths(d, -2);
       out.push({
         key,
         axisLabel: d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" }), // "Sep", "Jun", ...
-        tooltip:   `${from3.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })}–${d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })} ${d.getFullYear()}`
+        tooltip:   `${from3.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })} - ${d.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" })} ${d.getFullYear()}`
       });
     }
     return out;
   }
+}
+
+function monthsForQuarterBucket(endKey: string): string[] {
+  const [yearStr, monthStr] = endKey.split("-");
+  const year = Number.parseInt(yearStr ?? "", 10);
+  const month = Number.parseInt(monthStr ?? "", 10);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return [];
+  const base = new Date(Date.UTC(year, month - 1, 1));
+  const keys: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(base);
+    d.setUTCMonth(d.getUTCMonth() - i);
+    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  return keys;
 }
 
 /* ---------- SQL key expressions per granularity ---------- */
@@ -182,17 +198,17 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const { from, to, FROM_UTC, TO_PLUS_1D_UTC } = computeWindow(url.searchParams);
   const gran: Granularity = chooseGranularity(from, to);
+  const useQuarterBuckets = gran === "quarter3";
+  const sqlGran: Granularity = useQuarterBuckets ? "month" : gran;
 
   const pool = getPool();
 
   try {
     const buckets = buildBuckets(from, to, gran);
 
-    const keyR = sqlKeyExpr(gran, "r.issued_at", to);
-    const keyS = sqlKeyExpr(gran, "r.issued_at", to);
-
-    const paramsR = gran === "quarter3" ? [FROM_UTC, TO_PLUS_1D_UTC, to, to] : [FROM_UTC, TO_PLUS_1D_UTC];
-    const paramsS = gran === "quarter3" ? [FROM_UTC, TO_PLUS_1D_UTC, to, to] : [FROM_UTC, TO_PLUS_1D_UTC];
+    const keyR = sqlKeyExpr(sqlGran, "r.issued_at", useQuarterBuckets ? undefined : to);
+    const keyS = sqlKeyExpr(sqlGran, "r.issued_at", useQuarterBuckets ? undefined : to);
+    const params: [string, string] = [FROM_UTC, TO_PLUS_1D_UTC];
 
     // Receipts
     const [rowsR] = await pool.query(
@@ -203,7 +219,7 @@ export async function GET(req: Request) {
       GROUP BY bucket_key
       ORDER BY bucket_key
       `,
-      paramsR as any
+      params as any
     ) as any;
 
     // Submissions (cohort by receipt issued_at)
@@ -216,7 +232,7 @@ export async function GET(req: Request) {
       GROUP BY bucket_key
       ORDER BY bucket_key
       `,
-      paramsS as any
+      params as any
     ) as any;
 
     const rMap = new Map<string, number>();
@@ -225,8 +241,9 @@ export async function GET(req: Request) {
     (rowsS as any[]).forEach(r => sMap.set(String(r.bucket_key), Number(r.submissions || 0)));
 
     const points = buckets.map(b => {
-      const receipts = rMap.get(b.key) ?? 0;
-      const submissions = sMap.get(b.key) ?? 0;
+      const keys = useQuarterBuckets ? monthsForQuarterBucket(b.key) : [b.key];
+      const receipts = keys.reduce((sum, key) => sum + (rMap.get(key) ?? 0), 0);
+      const submissions = keys.reduce((sum, key) => sum + (sMap.get(key) ?? 0), 0);
       const responsePct = receipts > 0 ? (submissions / receipts) * 100 : 0;
       return {
         bucketKey: b.key,

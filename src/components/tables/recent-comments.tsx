@@ -739,19 +739,20 @@ function DataTable(props: {
   const [exportOpen, setExportOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
-  type ExportFormat = "CSV" | "PRINTABLE";
+  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90" | "LAST_365";
+  type ExportFormat = "CSV" | "PDF";
   const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
   const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
   const PRESET_LABEL: Record<ExportPreset, string> = {
-    FOLLOW_FILTER: "Follow the Custom Filter",
+    FOLLOW_FILTER: "Custom (use current filters)",
     LAST_7: "Last 7 days",
     LAST_30: "Last 30 days",
     LAST_90: "Last 3 months",
+    LAST_365: "Last 12 months",
   };
   const FORMAT_LABEL: Record<ExportFormat, string> = {
-    CSV: "CSV file",
-    PRINTABLE: "Printable table (PDF via print dialog)",
+    CSV: "CSV (.csv)",
+    PDF: "PDF (.pdf)",
   };
 
   // PH timezone helpers                                                      // ADDED
@@ -773,7 +774,14 @@ function DataTable(props: {
     if (p === "FOLLOW_FILTER") return null;                                  // ADDED
     const today = phTodayYMD();                                              // ADDED
     const endMs = phEndOfDayUTCms(today);                                    // ADDED
-    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90;             // ADDED
+    const days =
+      p === "LAST_7"
+        ? 7
+        : p === "LAST_30"
+        ? 30
+        : p === "LAST_90"
+        ? 90
+        : 365;             // ADDED
     const startDate = new Date(new Date(`${today}T00:00:00+08:00`).getTime());// ADDED
     startDate.setDate(startDate.getDate() - (days - 1));                     // ADDED
     const y = startDate.getFullYear();                                       // ADDED
@@ -792,6 +800,11 @@ function DataTable(props: {
       return t >= r.startMs && t <= r.endMs;                                 // ADDED
     });                                                                       // ADDED
   }                                                                          // ADDED
+
+  const exportRowCount = React.useMemo(                                      // ADDED
+    () => rowsForExport().length,                                            // ADDED
+    [exportPreset, sorted]                                                   // ADDED
+  );                                                                         // ADDED
 
   return (
     <div className="flex flex-col gap-3">
@@ -839,7 +852,7 @@ function DataTable(props: {
               <AlertDialogHeader>
                 <AlertDialogTitle>Export Range</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose what to export. “Follow the Custom Filter” uses the current dashboard date filter (and table search).
+                  Choose what to export. "Custom" uses the current dashboard filters (and table search).
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
@@ -857,10 +870,11 @@ function DataTable(props: {
                       <SelectValue placeholder="Select range" />
                     </SelectTrigger>
                     <SelectContent className="border-2 border-primary/30 shadow-lg">
-                      <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                      <SelectItem value="FOLLOW_FILTER">Custom (use current filters)</SelectItem>
                       <SelectItem value="LAST_7">Last 7 days</SelectItem>
                       <SelectItem value="LAST_30">Last 30 days</SelectItem>
                       <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                      <SelectItem value="LAST_365">Last 12 months</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -874,17 +888,22 @@ function DataTable(props: {
                focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
                       <SelectValue placeholder="Select format" />
                     </SelectTrigger>
-                    <SelectContent className="border-2 border-primary/30 shadow-lg">
-                      <SelectItem value="CSV">CSV (.csv)</SelectItem>
-                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <SelectContent className="border-2 border-primary/30 shadow-lg">
+                  <SelectItem value="CSV">CSV (.csv)</SelectItem>
+                  <SelectItem value="PDF">PDF (.pdf)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-              <AlertDialogFooter className="mt-2">
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">{exportRowCount.toLocaleString()}</span>{" "}
+            {exportRowCount === 1 ? "row" : "rows"} will be exported.
+          </p>
+
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
                   onClick={() => {
                     setExportOpen(false);
                     setTimeout(() => setConfirmOpen(true), 10);
@@ -1177,4 +1196,9 @@ export default function RecentComments() {
     </TooltipProvider>
   );
 }
+
+
+
+
+
 

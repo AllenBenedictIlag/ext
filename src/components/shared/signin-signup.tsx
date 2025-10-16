@@ -4,6 +4,7 @@
 import Image from "next/image";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { writeCachedUser } from "@/lib/user-cache";
+import { persistDefaultDateRange } from "@/lib/dashboard-filters";
+import type { DateRangeChoice } from "@/types/settings";
 
 export function SigninForm({
   className,
@@ -18,6 +21,7 @@ export function SigninForm({
 }: React.ComponentProps<"div">) {
   const router = useRouter();
   const search = useSearchParams();
+  const { setTheme } = useTheme();
 
   const [showPasswords, setShowPasswords] = React.useState(false);
   const togglePasswords = () => setShowPasswords((s) => !s);
@@ -34,6 +38,37 @@ export function SigninForm({
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const syncPreferences = React.useCallback(async () => {
+    try {
+      const prefsRes = await fetch("/api/admin/settings/preferences", {
+        cache: "no-store",
+      });
+      if (!prefsRes.ok) {
+        return;
+      }
+      const prefsJson = await prefsRes.json().catch(() => null);
+      const data = prefsJson?.data as
+        | { theme?: string | null; defaultDateRange?: string | null }
+        | undefined;
+      if (!data) {
+        return;
+      }
+
+      const themeChoice = data.theme ?? undefined;
+      if (themeChoice === "DARK") {
+        setTheme("dark");
+      } else if (themeChoice === "LIGHT") {
+        setTheme("light");
+      } else {
+        setTheme("system");
+      }
+
+      persistDefaultDateRange(data.defaultDateRange as DateRangeChoice | null | undefined);
+    } catch {
+      // ignore preference sync failures
+    }
+  }, [setTheme]);
+
   // show toast if middleware redirected here with reason
   React.useEffect(() => {
     const reason = search.get("reason");
@@ -44,7 +79,7 @@ export function SigninForm({
     } else if (reason === "expired") {
       toast.error("Your session expired. Please sign in again.", common);
     } else if (reason === "forbidden") {
-      toast.error("You don’t have permission to access that page.", common);
+      toast.error("You don't have permission to access that page.", common);
     }
   }, [search]);
 
@@ -70,7 +105,7 @@ export function SigninForm({
 
     try {
       if (mode === "signin") {
-        // ✅ FIX: use the signin endpoint (not /api/auth/admins)
+        // NOTE: use the dedicated signin endpoint (not /api/auth/admins)
         const res = await fetch("/api/auth/admins/signin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -94,13 +129,15 @@ export function SigninForm({
           role: json.data.role, // "ADMIN" | "SUPER_ADMIN"
         });
 
+        await syncPreferences();
+
         const role = json?.data?.role as "SUPER_ADMIN" | "ADMIN" | undefined;
         const last = json?.data?.last_name ?? "";
         if (role === "SUPER_ADMIN") {
-          toast.success(`Welcome back, Super Admin ${last} 🚀`, { id: "welcome" });
+          toast.success(`Welcome back, Super Admin ${last}!`, { id: "welcome" });
           router.push("/superadmin/governance");
         } else {
-          toast.success(`Welcome back, Admin ${last}`, { id: "welcome" });
+          toast.success(`Welcome back, Admin ${last}!`, { id: "welcome" });
           router.push("/admin/dashboard");
         }
       } else {
@@ -114,16 +151,15 @@ export function SigninForm({
           return;
         }
 
+        const trimmedEmail = email.trim();
         const res = await fetch("/api/auth/admins", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             first_name: firstName.trim(),
             last_name: lastName.trim(),
-            email: email.trim(),
+            email: trimmedEmail,
             password,
-            role: "ADMIN",
-            status: "ACTIVE",
           }),
         });
         const json = await res.json();
@@ -135,18 +171,16 @@ export function SigninForm({
           return;
         }
 
-        // cache user for instant UI
-        writeCachedUser({
-          id: json.data.id,
-          firstName: json.data.first_name ?? "",
-          lastName: json.data.last_name ?? "",
-          email: json.data.email,
-          role: json.data.role,
-        });
-
-        const last = json?.data?.last_name ?? "";
-        toast.success(`Account created! Welcome, Admin ${last} 👋`, { id: "welcome" });
-        router.push("/admin/dashboard");
+        const created = json?.data;
+        const createdLast = created?.last_name ?? lastName.trim();
+        toast.success(
+          `Account created for Admin ${createdLast}. A super admin will activate your access shortly.`,
+          { id: "signup-pending" }
+        );
+        switchMode("signin");
+        setEmail(trimmedEmail);
+        setPassword("");
+        setConfirm("");
       }
     } catch (err: any) {
       const msg = err?.message ?? "Network error";
@@ -239,7 +273,7 @@ export function SigninForm({
                     id="password"
                     type={showPasswords ? "text" : "password"}
                     required
-                    placeholder="••••••••"
+                    placeholder="********"
                     autoComplete={mode === "signin" ? "current-password" : "new-password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -267,7 +301,7 @@ export function SigninForm({
                     id="confirm"
                     type={showPasswords ? "text" : "password"}
                     required
-                    placeholder="••••••••"
+                    placeholder="********"
                     autoComplete="new-password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
@@ -339,3 +373,5 @@ export function SigninForm({
     </div>
   );
 }
+
+

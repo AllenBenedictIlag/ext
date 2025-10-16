@@ -47,6 +47,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Loader2,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
@@ -170,13 +171,12 @@ type DataTableProps<T extends Record<string, unknown>> = {
   searchKeys?: (keyof T & string)[];
   getRowKey?: (row: T, absoluteIndex: number) => React.Key;
   rightActions?: React.ReactNode;
-  renderExportConfirm?: (opts: {
-    open: boolean;
-    setOpen: (v: boolean) => void;
-    onConfirm: () => void;
-  }) => React.ReactNode;
   /** Per-row actions rendered into the last cell */
   renderActions?: (row: T) => React.ReactNode;
+  /** Optional: override export title/filename slug */
+  exportTitle?: string;
+  /** Optional: exclude certain columns from export */
+  exportExcludeColumns?: (keyof T & string)[];
 };
 
 /* -------------------------------------------------------------------------- */
@@ -343,7 +343,7 @@ function InviteDialog({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  DATATABLE (SCROLL-ONLY, NO PAGINATION)                                    */
+/*  DATATABLE (SCROLL-ONLY) + SIMPLE TWO-STEP EXPORT (NO DATE RANGE)          */
 /* -------------------------------------------------------------------------- */
 
 function DataTable<T extends Record<string, unknown>>({
@@ -354,20 +354,40 @@ function DataTable<T extends Record<string, unknown>>({
   searchKeys,
   getRowKey,
   rightActions,
-  renderExportConfirm,
   renderActions,
+  exportTitle = "Users",
+  exportExcludeColumns = [],
 }: DataTableProps<T>) {
   const [query, setQuery] = React.useState<string>("");
   const [sort, setSort] = React.useState<SortState<T> | undefined>(defaultSort);
   const [visibility, setVisibility] = React.useState<Record<string, boolean>>(
     Object.fromEntries(columns.map((c) => [c.id, c.visible !== false]))
   );
+
+  // ---- Export (Two-step: choose format → confirm). No date ranges.
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  type ExportFormat = "CSV" | "PRINTABLE";
+  const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
+  const FORMAT_LABEL: Record<ExportFormat, string> = {
+    CSV: "CSV file",
+    PRINTABLE: "Printable table (PDF via print dialog)",
+  };
 
   const visibleColumns = React.useMemo(
     () => columns.filter((c) => visibility[c.id]),
     [columns, visibility]
   );
+  const exportExcludeSet = React.useMemo(
+    () => new Set(exportExcludeColumns),
+    [exportExcludeColumns]
+  );
+  const exportColumns = React.useMemo(() => {
+    const filtered = visibleColumns.filter(
+      (c) => !exportExcludeSet.has(c.id as keyof T & string)
+    );
+    return filtered.length > 0 ? filtered : visibleColumns;
+  }, [visibleColumns, exportExcludeSet]);
 
   const SEARCH_KEYS: (keyof T & string)[] =
     searchKeys ?? (columns.map((c) => c.id) as (keyof T & string)[]);
@@ -415,7 +435,9 @@ function DataTable<T extends Record<string, unknown>>({
   const toggleCol = (id: string) =>
     setVisibility((v) => ({ ...v, [id]: !v[id] }));
 
-  // ---- Export (and audit log)
+  // ---- Export helpers (no date filters; always export "sorted")
+  const exportPreviewCount = sorted.length;
+
   async function logExport(meta: {
     resource: string;
     format: string;
@@ -434,10 +456,11 @@ function DataTable<T extends Record<string, unknown>>({
     }
   }
 
-  const doExport = async () => {
-    const headers = visibleColumns.map((c) => c.header);
-    const rows = sorted.map((row) =>
-      visibleColumns.map((c) => {
+  function buildCSVFor(list: T[]): string {
+    const cols = exportColumns.length ? exportColumns : visibleColumns;
+    const headers = cols.map((c) => c.header);
+    const rows = list.map((row) =>
+      cols.map((c) => {
         const raw = c.accessor(row);
         if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
           return formatDatePH(raw);
@@ -459,29 +482,170 @@ function DataTable<T extends Record<string, unknown>>({
             .join(",")
         )
         .join("\n") + "\n";
+    return csv;
+  }
 
+  function downloadCSV(filename: string, csv: string) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "");
     a.href = url;
-    a.download = `users-visible-${ts}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
 
-    // audit
-    void logExport({
-      resource: "users",
-      format: "csv",
-      rowCount: sorted.length,
-      columns: visibleColumns.map((c) => String(c.id)),
-      query,
+  function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (match) => {
+      switch (match) {
+        case "&":
+          return "&amp;";
+        case "<":
+          return "&lt;";
+        case ">":
+          return "&gt;";
+        case '"':
+          return "&quot;";
+        case "'":
+          return "&#39;";
+        default:
+          return match;
+      }
     });
-  };
+  }
 
+  function currentDatePH(): Date {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  }
+  function formatDisplayDatePH(d: Date): string {
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila",
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    }).format(d);
+  }
+  function formatFileDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}${m}${day}`;
+  }
+  function slugify(value: string): string {
+    const slug = value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return slug || "export";
+  }
+
+  function openPrintableTable(list: T[], docTitle: string) {
+    if (typeof window === "undefined") return;
+    const cols = exportColumns.length ? exportColumns : visibleColumns;
+    const headersHtml = cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join("");
+    const rowsHtml = list.length
+      ? list
+          .map((row) => {
+            const cells = cols
+              .map((c) => {
+                const raw = c.accessor(row);
+                let text: string;
+                if (typeof raw === "string" && /\d{4}-\d{2}-\d{2}T/.test(raw)) {
+                  text = formatDatePH(raw);
+                } else if (raw == null) {
+                  text = "";
+                } else {
+                  text = String(raw);
+                }
+                return `<td>${escapeHtml(text)}</td>`;
+              })
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="${cols.length}" style="text-align:center;">No rows to export</td></tr>`;
+    const generatedAt = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(docTitle)}</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        margin: 24px;
+        color: #1f2937;
+        background: #fff;
+      }
+      h1 { margin: 0 0 4px 0; font-size: 20px; font-weight: 600; }
+      .meta { margin: 0 0 16px 0; font-size: 12px; color: #4b5563; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { border: 1px solid #d1d5db; padding: 8px; vertical-align: top; text-align: left; }
+      th { background: #f3f4f6; font-weight: 600; }
+      @media print { body { margin: 12px; } h1 { font-size: 18px; } table { font-size: 11px; } }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(docTitle)}</h1>
+    <p class="meta">Generated ${escapeHtml(generatedAt)}</p>
+    <table>
+      <thead><tr>${headersHtml}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  </body>
+</html>`;
+
+    const printable = window.open("", "_blank");
+    if (!printable) {
+      console.warn("Unable to open printable export window.");
+      return;
+    }
+    printable.document.open();
+    printable.document.write(html);
+    printable.document.close();
+    printable.document.title = docTitle;
+
+    const triggerPrint = () => {
+      try {
+        printable.focus();
+      } catch {}
+      try {
+        printable.print();
+      } catch {}
+    };
+
+    const cleanup = () => {
+      try {
+        printable.close();
+      } catch {}
+    };
+
+    if (typeof printable.addEventListener === "function") {
+      printable.addEventListener("afterprint", cleanup, { once: true });
+    }
+    setTimeout(cleanup, 60_000);
+
+    if (printable.document.readyState === "complete") {
+      setTimeout(triggerPrint, 100);
+    } else if (typeof printable.addEventListener === "function") {
+      printable.addEventListener(
+        "load",
+        () => {
+          setTimeout(triggerPrint, 100);
+        },
+        { once: true }
+      );
+    } else {
+      setTimeout(triggerPrint, 150);
+    }
+  }
+
+  // ---- UI
   return (
     <div className="space-y-3">
-      {/* Controls (no pagination or page-size) */}
+      {/* Controls (no pagination) */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-[360px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -523,32 +687,131 @@ function DataTable<T extends Record<string, unknown>>({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Export CSV confirm (light overlay) */}
+          {/* Step 1: Choose format (no date range) */}
           <Button
             variant="default"
             size="sm"
-            aria-label="Export visible rows to CSV"
+            aria-label="Export rows"
             className="btn-halo btn-halo--emph"
             onClick={() => setExportOpen(true)}
           >
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            Export
           </Button>
 
-          {renderExportConfirm?.({
-            open: exportOpen,
-            setOpen: setExportOpen,
-            onConfirm: () => {
-              void doExport();
-              setExportOpen(false);
-            },
-          })}
+          <LA.Root
+            open={exportOpen}
+            onOpenChange={(o) => {
+              setExportOpen(o);
+              if (!o) setConfirmOpen(false);
+            }}
+          >
+            <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
+              <div className="space-y-2">
+                <LA.Title className="text-lg font-semibold">Export users</LA.Title>
+                <LA.Description className="text-sm text-muted-foreground">
+                  Exports the current table <strong>filter &amp; sort</strong> (no date range).
+                </LA.Description>
+              </div>
+
+              <div className="grid gap-4 mt-2">
+                <div className="grid gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Format</span>
+                  <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ExportFormat)}>
+                    <SelectTrigger className="w-full border-2 border-primary/70 hover:border-primary data-[state=open]:border-primary focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/30">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-primary/30 shadow-lg">
+                      <SelectItem value="CSV">CSV (.csv)</SelectItem>
+                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{exportPreviewCount}</span>{" "}
+                  row{exportPreviewCount === 1 ? "" : "s"} will be exported
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <LA.Cancel asChild>
+                  <Button variant="outline">Cancel</Button>
+                </LA.Cancel>
+                <Button
+                  onClick={() => {
+                    setExportOpen(false);
+                    setTimeout(() => setConfirmOpen(true), 10);
+                  }}
+                  className="btn-halo"
+                  disabled={exportPreviewCount === 0}
+                >
+                  Continue
+                </Button>
+              </div>
+            </LA.Content>
+          </LA.Root>
+
+          {/* Step 2: Confirm */}
+          <LA.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
+              <div className="space-y-2">
+                <LA.Title className="text-lg font-semibold">Confirm export</LA.Title>
+                <LA.Description className="text-sm text-muted-foreground">
+                  Export current filtered &amp; sorted rows as{" "}
+                  <span className="font-medium">{FORMAT_LABEL[exportFormat]}</span>?
+                </LA.Description>
+              </div>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <LA.Cancel asChild>
+                  <Button variant="outline">Back</Button>
+                </LA.Cancel>
+                <LA.Action asChild>
+                  <Button
+                    className="btn-halo btn-halo--emph"
+                    onClick={async () => {
+                      const list = sorted;
+                      const nowPH = currentDatePH();
+                      const displayDate = formatDisplayDatePH(nowPH);
+                      const docTitle = `${exportTitle} (Export) ${displayDate}`;
+
+                      if (exportFormat === "CSV") {
+                        const csv = buildCSVFor(list);
+                        const fileName = `${slugify(exportTitle)}-export-${formatFileDate(nowPH)}.csv`;
+                        downloadCSV(fileName, csv);
+                        await logExport({
+                          resource: "users",
+                          format: "csv",
+                          rowCount: list.length,
+                          columns: exportColumns.map((c) => String(c.id)),
+                          query,
+                        });
+                      } else {
+                        openPrintableTable(list, docTitle);
+                        await logExport({
+                          resource: "users",
+                          format: "printable",
+                          rowCount: list.length,
+                          columns: exportColumns.map((c) => String(c.id)),
+                          query,
+                        });
+                      }
+
+                      setConfirmOpen(false);
+                    }}
+                  >
+                    Yes, export
+                  </Button>
+                </LA.Action>
+              </div>
+            </LA.Content>
+          </LA.Root>
         </div>
       </div>
 
       {/* Table (scroll-only) */}
       <div className="rounded-md border overflow-hidden">
-        <div className="max-h-[600px] overflow-auto">
+        <div className="max-h-[680px] overflow-auto">
           <Table className="table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
@@ -657,7 +920,7 @@ function DataTable<T extends Record<string, unknown>>({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  REMOTE FETCH                                                              */
+/*  REMOTE FETCH with SOFT REVALIDATION + MUTATE (no table reload)            */
 /* -------------------------------------------------------------------------- */
 
 type ApiResponse = {
@@ -673,18 +936,21 @@ function UsersRemoteData({
 }: {
   children: (
     rows: Row[],
-    loading: boolean,
+    loading: boolean, // first load only
     error: boolean,
-    refetch: () => void
+    refetch: (opts?: { soft?: boolean }) => void,
+    mutate: (updater: (prev: Row[]) => Row[]) => void,
+    fetching: boolean // soft background revalidation
   ) => React.ReactNode;
 }) {
   const [rows, setRows] = React.useState<Row[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [fetching, setFetching] = React.useState(false);
   const [error, setError] = React.useState(false);
 
-  const refetch = React.useCallback(async () => {
+  const refetch = React.useCallback(async (opts?: { soft?: boolean }) => {
     try {
-      setLoading(true);
+      opts?.soft ? setFetching(true) : setLoading(true);
       setError(false);
       const res = await fetch(
         "/api/superadmin/users/users-table?limit=500&sort=updated_at&dir=desc",
@@ -696,7 +962,7 @@ function UsersRemoteData({
     } catch {
       setError(true);
     } finally {
-      setLoading(false);
+      opts?.soft ? setFetching(false) : setLoading(false);
     }
   }, []);
 
@@ -704,7 +970,12 @@ function UsersRemoteData({
     void refetch();
   }, [refetch]);
 
-  return <>{children(rows, loading, error, refetch)}</>;
+  const mutate = React.useCallback(
+    (updater: (prev: Row[]) => Row[]) => setRows((prev) => updater(prev)),
+    []
+  );
+
+  return <>{children(rows, loading, error, refetch, mutate, fetching)}</>;
 }
 
 function SkeletonRows() {
@@ -768,18 +1039,17 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
 
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card shadow-sm px-4">
-      <CardHeader>
-        <CardTitle className="tracking-normal">
-          Users &amp; Roles (Super Admin)
-        </CardTitle>
-        <CardDescription>
-          Manage who can access Admin and Super Admin functions. Invite users,
-          change roles, revoke access, and control status.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pb-4">
+      {/* <CardHeader className="flex flex-row items-start justify-between">
+        <div>
+          <CardTitle className="tracking-normal">Users &amp; Roles (Super Admin)</CardTitle>
+          <CardDescription>
+            Manage who can access Admin and Super Admin functions. Invite users, change roles, revoke access, and control status.
+          </CardDescription>
+        </div>
+      </CardHeader> */}
+      <CardContent className="pb-4 flex-col">
         <UsersRemoteData>
-          {(rows, loading, error, refetch) => {
+          {(rows, loading, error, refetch, mutate, fetching) => {
             const COLUMNS: ColumnDef<Row>[] = [
               {
                 id: "admin_id",
@@ -796,10 +1066,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                 header: "Name",
                 accessor: (r) => r.name,
                 formatter: (v) => (
-                  <EllipsizedWithTooltip
-                    text={String(v)}
-                    className="max-w-[220px]"
-                  />
+                  <EllipsizedWithTooltip text={String(v)} className="max-w-[220px]" />
                 ),
                 width: "240px",
                 sortable: true,
@@ -811,10 +1078,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                 header: "Email",
                 accessor: (r) => r.email,
                 formatter: (v) => (
-                  <EllipsizedWithTooltip
-                    text={String(v)}
-                    className="max-w-[260px]"
-                  />
+                  <EllipsizedWithTooltip text={String(v)} className="max-w-[260px]" />
                 ),
                 width: "280px",
                 sortable: true,
@@ -860,11 +1124,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                       ? "border-destructive text-destructive"
                       : "text-muted-foreground border-muted-foreground";
                   const label =
-                    s === "ACTIVE"
-                      ? "Active"
-                      : s === "SUSPENDED"
-                      ? "Suspended"
-                      : "Inactive";
+                    s === "ACTIVE" ? "Active" : s === "SUSPENDED" ? "Suspended" : "Inactive";
                   return (
                     <Badge variant="outline" className={cn("px-2", cls)}>
                       {label}
@@ -879,12 +1139,10 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
               },
               {
                 id: "created_at",
-                header: "Created (PH)",
+                header: "Created",
                 accessor: (r) => r.created_at,
                 formatter: (v) => (
-                  <span className="whitespace-nowrap">
-                    {formatDatePH(String(v))}
-                  </span>
+                  <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
                 ),
                 width: "200px",
                 sortable: true,
@@ -893,12 +1151,10 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
               },
               {
                 id: "updated_at",
-                header: "Updated (PH)",
+                header: "Updated",
                 accessor: (r) => r.updated_at,
                 formatter: (v) => (
-                  <span className="whitespace-nowrap">
-                    {formatDatePH(String(v))}
-                  </span>
+                  <span className="whitespace-nowrap">{formatDatePH(String(v))}</span>
                 ),
                 width: "200px",
                 sortable: true,
@@ -908,17 +1164,20 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
             ];
 
             const rightActions = (
-              <Button
-                size="sm"
-                className="btn-halo btn-halo--emph"
-                onClick={() => setInviteOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Invite
-              </Button>
+              <div className="flex items-center gap-2">
+                {fetching && <Loader2 className="h-4 w-4 animate-spin opacity-60" aria-hidden />}
+                {/* <Button
+                  size="sm"
+                  className="btn-halo btn-halo--emph"
+                  onClick={() => setInviteOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Invite
+                </Button> */}
+              </div>
             );
 
-            if (loading) return <SkeletonRows />;
+            if (loading && rows.length === 0) return <SkeletonRows />;
             if (error)
               return (
                 <div className="text-sm text-destructive">
@@ -936,33 +1195,6 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                   searchKeys={["name", "email", "role", "status"]}
                   getRowKey={(r) => r.admin_id}
                   rightActions={rightActions}
-                  renderExportConfirm={({ open, setOpen, onConfirm }) => (
-                    <LA.Root open={open} onOpenChange={setOpen}>
-                      <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
-                        <div className="space-y-2">
-                          <LA.Title className="text-lg font-semibold">
-                            Export visible rows?
-                          </LA.Title>
-                          <LA.Description className="text-sm text-muted-foreground">
-                            This will export the currently visible (filtered &amp; sorted) rows in the table to CSV.
-                          </LA.Description>
-                        </div>
-                        <div className="mt-4 flex items-center justify-end gap-2">
-                          <LA.Cancel asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </LA.Cancel>
-                          <LA.Action asChild>
-                            <Button
-                              onClick={onConfirm}
-                              className="btn-halo btn-halo--emph"
-                            >
-                              Continue
-                            </Button>
-                          </LA.Action>
-                        </div>
-                      </LA.Content>
-                    </LA.Root>
-                  )}
                   renderActions={(r) => (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -982,11 +1214,7 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({
-                              kind: "role",
-                              row: r,
-                              next: "SUPER_ADMIN",
-                            })
+                            setConfirm({ kind: "role", row: r, next: "SUPER_ADMIN" })
                           )}
                         >
                           Set role: Super Admin
@@ -994,33 +1222,21 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({
-                              kind: "status",
-                              row: r,
-                              next: "ACTIVE",
-                            })
+                            setConfirm({ kind: "status", row: r, next: "ACTIVE" })
                           )}
                         >
                           Mark Active
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({
-                              kind: "status",
-                              row: r,
-                              next: "INACTIVE",
-                            })
+                            setConfirm({ kind: "status", row: r, next: "INACTIVE" })
                           )}
                         >
                           Mark Inactive
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={openAfterMenuClose(() =>
-                            setConfirm({
-                              kind: "status",
-                              row: r,
-                              next: "SUSPENDED",
-                            })
+                            setConfirm({ kind: "status", row: r, next: "SUSPENDED" })
                           )}
                         >
                           Mark Suspended
@@ -1044,14 +1260,15 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
+                  exportTitle="Users"
                 />
 
-                {/* INVITE */}
+                {/* INVITE
                 <InviteDialog
                   open={inviteOpen}
                   onOpenChange={(o) => setInviteOpen(o)}
-                  onInvited={refetch}
-                />
+                  onInvited={() => refetch({ soft: true })}
+                /> */}
 
                 {/* GLOBAL CONFIRM */}
                 <LA.Root
@@ -1061,17 +1278,11 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                   <LA.Content onOpenAutoFocus={(e) => e.preventDefault()}>
                     <div className="space-y-2">
                       <LA.Title className="text-lg font-semibold">
-                        {confirm.kind === "status" &&
-                          `Change status to ${confirm.next}`}
+                        {confirm.kind === "status" && `Change status to ${confirm.next}`}
                         {confirm.kind === "role" &&
-                          `Change role to ${
-                            confirm.next === "SUPER_ADMIN"
-                              ? "Super Admin"
-                              : "Admin"
-                          }`}
+                          `Change role to ${confirm.next === "SUPER_ADMIN" ? "Super Admin" : "Admin"}`}
                         {confirm.kind === "reset" && `Reset password`}
-                        {confirm.kind === "revoke" &&
-                          `Revoke access (suspend + logout)`}
+                        {confirm.kind === "revoke" && `Revoke access (suspend + logout)`}
                       </LA.Title>
                       <LA.Description className="text-sm text-muted-foreground">
                         {confirm.kind === "reset"
@@ -1092,34 +1303,64 @@ export default function UsersTable({ highlightRows = true }: UsersTableProps) {
                           disabled={busy}
                           onClick={async () => {
                             if (!confirm.row) return;
+
+                            const id = confirm.row.admin_id;
+                            const now = new Date().toISOString();
+
                             if (confirm.kind === "status" && confirm.next) {
+                              // optimistic status
+                              mutate((prev) =>
+                                prev.map((r) =>
+                                  r.admin_id === id
+                                    ? { ...r, status: confirm.next as Row["status"], updated_at: now }
+                                    : r
+                                )
+                              );
                               await doPost({
                                 action: "update_status",
-                                admin_id: confirm.row.admin_id,
+                                admin_id: id,
                                 status: confirm.next,
                               });
                             } else if (confirm.kind === "role" && confirm.next) {
+                              // optimistic role
+                              mutate((prev) =>
+                                prev.map((r) =>
+                                  r.admin_id === id
+                                    ? { ...r, role: confirm.next as Row["role"], updated_at: now }
+                                    : r
+                                )
+                              );
                               await doPost({
                                 action: "change_role",
-                                admin_id: confirm.row.admin_id,
+                                admin_id: id,
                                 role: confirm.next,
                               });
                             } else if (confirm.kind === "reset") {
                               const { ok, json } = await doPost({
                                 action: "reset_password",
-                                admin_id: confirm.row.admin_id,
+                                admin_id: id,
                               });
                               if (ok && (json as { temp_password?: string }).temp_password) {
                                 setTempShown((json as { temp_password: string }).temp_password);
                               }
                             } else if (confirm.kind === "revoke") {
+                              // optimistic revoke => suspended
+                              mutate((prev) =>
+                                prev.map((r) =>
+                                  r.admin_id === id
+                                    ? { ...r, status: "SUSPENDED", updated_at: now }
+                                    : r
+                                )
+                              );
                               await doPost({
                                 action: "revoke_access",
-                                admin_id: confirm.row.admin_id,
+                                admin_id: id,
                               });
                             }
+
                             setConfirm({ kind: "status", row: null });
-                            await refetch();
+                            // background revalidate (no skeleton flash)
+                            void refetch({ soft: true });
                           }}
                           className="btn-halo btn-halo--emph"
                         >

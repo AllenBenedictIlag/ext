@@ -46,7 +46,12 @@ export function SiteHeader() {
   const title = React.useMemo(() => resolveTitle(pathname), [pathname])
   const hideQuickFilter = React.useMemo(() => {
     if (!pathname) return false
-    return pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/questions") || pathname.startsWith("/superadmin/settings") 
+    return pathname.startsWith("/admin/settings") 
+    || pathname.startsWith("/admin/questions") 
+    || pathname.startsWith("/superadmin/settings") 
+    || pathname.startsWith("/superadmin/audit-log")  
+    || pathname.startsWith("/superadmin/users") 
+
   }, [pathname])
 
   return (

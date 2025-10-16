@@ -1,65 +1,30 @@
-// src/components/admin/dashboard/survey-versions.tsx
+// src/components/tables/survey-versions.tsx
 "use client";
 
 import * as React from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, Download, Search } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
-/* ──────────────────────────────────────────────────────────────────────────────
-   Types
-────────────────────────────────────────────────────────────────────────────── */
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowUpDown, Download, Search } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
-export type Row = {
+export type SurveyVersionRow = {
   id: number;
   status: Status;
   version: number;
   title: string;
-  published_at: string | null; // ISO or null
-  created_at: string; // ISO
-  updated_at: string; // ISO
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
   draft_owner: string | null;
   diff_link: string;
 };
@@ -69,260 +34,208 @@ type ApiResponse = {
   pageSize: number;
   total: number;
   totalPages: number;
-  rows: Row[];
+  rows: SurveyVersionRow[];
 };
 
 type ColumnDef<T> = {
-  id: keyof T | string;
+  id: string;
   header: string;
   width?: string;
   accessor: (row: T) => React.ReactNode;
   sortAccessor?: (row: T) => string | number | Date | null;
   visible?: boolean;
-  toggleable?: boolean;
 };
 
+type SortState = { id: string; desc: boolean };
+
 type Props = {
-  highlightRows?: boolean; // default: true
+  highlightRows?: boolean;
 };
 
 const DEFAULT_PAGE_SIZE = 10;
-const PAGE_SIZES = [10, 25, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
-/* ──────────────────────────────────────────────────────────────────────────────
-   Helpers
-────────────────────────────────────────────────────────────────────────────── */
-
-const DATE_FMT_PH = new Intl.DateTimeFormat("en-PH", {
+const DATE_FORMAT_PH = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Manila",
 });
 
-function formatDatePH(value: string | null): string {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return DATE_FMT_PH.format(d);
+const STATUS_CLASSES: Record<Status, string> = {
+  PUBLISHED: "text-emerald-600 dark:text-emerald-400",
+  DRAFT: "text-amber-600 dark:text-amber-400",
+  ARCHIVED: "text-muted-foreground",
+};
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "--";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "--";
+  return DATE_FORMAT_PH.format(date);
 }
 
-function truncate(text: string, max = 36): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-PH").format(value);
 }
 
-function formatWords(n: number | null | undefined): string {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("en-PH").format(n);
-}
-
-function csvCell(v: string): string {
-  const needsQuote = /[",\n]/.test(v);
-  return needsQuote ? `"${v.replace(/"/g, '""')}"` : v;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────────
-   Columns
-────────────────────────────────────────────────────────────────────────────── */
-
-const COLUMNS: ColumnDef<Row>[] = [
+const COLUMN_DEFS: ColumnDef<SurveyVersionRow>[] = [
   {
     id: "status",
     header: "Status",
-    width: "w-[120px]",
-    accessor: (r) => (
-      <span
-        className={
-          r.status === "PUBLISHED"
-            ? "text-emerald-600 dark:text-emerald-400 font-medium"
-            : r.status === "DRAFT"
-            ? "text-yellow-700 dark:text-yellow-300 font-medium"
-            : "text-muted-foreground font-medium"
-        }
-      >
-        {r.status}
+    width: "w-[140px]",
+    accessor: (row) => (
+      <span className={cn("font-medium uppercase tracking-tight", STATUS_CLASSES[row.status])}>
+        {row.status.replace("_", " ")}
       </span>
     ),
-    sortAccessor: (r) => r.status,
+    sortAccessor: (row) => row.status,
     visible: true,
-    toggleable: false,
   },
   {
     id: "version",
     header: "Version",
-    width: "w-[96px]",
-    accessor: (r) => <Badge variant="secondary">{`v${r.version}`}</Badge>,
-    sortAccessor: (r) => r.version,
+    width: "w-[120px]",
+    accessor: (row) => <Badge variant="secondary">{`v${row.version}`}</Badge>,
+    sortAccessor: (row) => row.version,
     visible: true,
-    toggleable: false,
   },
   {
     id: "title",
     header: "Title",
-    width: "min-w-[320px]",
-    accessor: (r) => (
-      <Tooltip delayDuration={200}>
+    accessor: (row) => (
+      <Tooltip delayDuration={150}>
         <TooltipTrigger asChild>
-          <span className="block max-w-[520px] truncate" aria-label={r.title}>
-            {truncate(r.title, 72)}
+          <span className="block max-w-[560px] truncate" title={row.title}>
+            {row.title}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-sm">
-          {r.title}
+        <TooltipContent side="bottom" align="start" className="max-w-xs">
+          {row.title}
         </TooltipContent>
       </Tooltip>
     ),
-    sortAccessor: (r) => r.title.toLowerCase(),
+    sortAccessor: (row) => row.title.toLowerCase(),
     visible: true,
-    toggleable: false,
   },
   {
     id: "published_at",
     header: "Published",
-    width: "w-[170px]",
-    accessor: (r) => (
-      <time dateTime={r.published_at ?? ""}>{formatDatePH(r.published_at)}</time>
-    ),
-    sortAccessor: (r) => (r.published_at ? new Date(r.published_at) : null),
+    width: "w-[190px]",
+    accessor: (row) => <time dateTime={row.published_at ?? ""}>{formatDate(row.published_at)}</time>,
+    sortAccessor: (row) => (row.published_at ? new Date(row.published_at) : null),
     visible: true,
-    toggleable: true,
   },
   {
     id: "created_at",
     header: "Created",
-    width: "w-[170px]",
-    accessor: (r) => (
-      <time dateTime={r.created_at}>{formatDatePH(r.created_at)}</time>
-    ),
-    sortAccessor: (r) => new Date(r.created_at),
+    width: "w-[190px]",
+    accessor: (row) => <time dateTime={row.created_at}>{formatDate(row.created_at)}</time>,
+    sortAccessor: (row) => new Date(row.created_at),
     visible: true,
-    toggleable: true,
   },
   {
     id: "updated_at",
     header: "Updated",
-    width: "w-[170px]",
-    accessor: (r) => (
-      <time dateTime={r.updated_at}>{formatDatePH(r.updated_at)}</time>
-    ),
-    sortAccessor: (r) => new Date(r.updated_at),
+    width: "w-[190px]",
+    accessor: (row) => <time dateTime={row.updated_at}>{formatDate(row.updated_at)}</time>,
+    sortAccessor: (row) => new Date(row.updated_at),
     visible: true,
-    toggleable: true,
   },
   {
     id: "draft_owner",
     header: "Draft Owner",
-    width: "w-[160px]",
-    accessor: (r) => <span>{r.draft_owner ?? "—"}</span>,
-    sortAccessor: (r) => (r.draft_owner ?? "—").toLowerCase(),
+    width: "w-[180px]",
+    accessor: (row) => row.draft_owner ?? "--",
+    sortAccessor: (row) => (row.draft_owner ?? "").toLowerCase(),
     visible: false,
-    toggleable: true,
   },
   {
     id: "diff_link",
     header: "Diff",
-    width: "w-[120px]",
-    accessor: (r) => (
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild>
-          <a
-            href={r.diff_link}
-            className="text-primary underline underline-offset-4 hover:no-underline"
-            aria-label={`View changes for v${r.version}`}
-          >
-            Open diff
-          </a>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Compare changes for this version</TooltipContent>
-      </Tooltip>
+    width: "w-[140px]",
+    accessor: (row) => (
+      <a
+        href={row.diff_link}
+        className="text-primary underline underline-offset-4 hover:no-underline"
+        aria-label={`Open diff for version ${row.version}`}
+      >
+        Open diff
+      </a>
     ),
-    sortAccessor: (r) => r.diff_link,
+    sortAccessor: (row) => row.diff_link,
     visible: false,
-    toggleable: true,
   },
 ];
-
-/* ──────────────────────────────────────────────────────────────────────────────
-   DataTable (unchanged table, updated controls area)
-────────────────────────────────────────────────────────────────────────────── */
 
 function DataTable({
   rows,
   columns,
   initialSort,
-  highlightRows = true,
+  highlightRows,
 }: {
-  rows: Row[];
-  columns: ColumnDef<Row>[];
-  initialSort: { id: string; desc: boolean };
-  highlightRows?: boolean;
+  rows: SurveyVersionRow[];
+  columns: ColumnDef<SurveyVersionRow>[];
+  initialSort: SortState;
+  highlightRows: boolean;
 }) {
-  const [q, setQ] = React.useState<string>("");
+  const [search, setSearch] = React.useState("");
   const [pageSize, setPageSize] = React.useState<number>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = React.useState<number>(1);
-  const [sort, setSort] = React.useState<{ id: string; desc: boolean }>(
-    initialSort
-  );
-  const [visibility] = React.useState<Record<string, boolean>>(
-    () => Object.fromEntries(columns.map((c) => [String(c.id), c.visible !== false]))
-  );
-  const [confirmExportOpen, setConfirmExportOpen] = React.useState<boolean>(false);
+  const [sort, setSort] = React.useState<SortState>(initialSort);
+  const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
 
   const visibleColumns = React.useMemo(
-    () => columns.filter((c) => visibility[String(c.id)]),
-    [columns, visibility]
+    () => columns.filter((col) => col.visible !== false),
+    [columns],
   );
 
-  const onHeaderClick = (id: string) => {
-    if (sort.id === id) setSort({ id, desc: !sort.desc });
-    else setSort({ id, desc: false });
-  };
-
   const filtered = React.useMemo(() => {
-    const query = q.trim().toLowerCase();
+    const query = search.trim().toLowerCase();
     if (!query) return rows;
-    return rows.filter((r) => {
-      const vLabel = `v${r.version}`;
-      const status = r.status.toLowerCase();
-      const title = r.title.toLowerCase();
-      const owner = (r.draft_owner ?? "—").toLowerCase();
-      const diff = r.diff_link.toLowerCase();
+    return rows.filter((row) => {
+      const versionLabel = `v${row.version}`;
+      const draftOwner = row.draft_owner ?? "";
       return (
-        title.includes(query) ||
-        status.includes(query) ||
-        vLabel.includes(query) ||
-        owner.includes(query) ||
-        diff.includes(query)
+        row.title.toLowerCase().includes(query) ||
+        row.status.toLowerCase().includes(query) ||
+        versionLabel.includes(query) ||
+        draftOwner.toLowerCase().includes(query)
       );
     });
-  }, [rows, q]);
+  }, [rows, search]);
 
   const sorted = React.useMemo(() => {
-    const col = columns.find((c) => c.id === sort.id);
-    if (!col || !col.sortAccessor) return filtered;
+    const column = columns.find((col) => col.id === sort.id && col.sortAccessor);
+    if (!column || !column.sortAccessor) return filtered;
     const copy = [...filtered];
     copy.sort((a, b) => {
-      const av = col.sortAccessor!(a);
-      const bv = col.sortAccessor!(b);
-      const isDateA = av instanceof Date;
-      const isDateB = bv instanceof Date;
-      let cmp = 0;
-      if (isDateA && isDateB) {
-        cmp = (av as Date).getTime() - (bv as Date).getTime();
-      } else if (typeof av === "number" && typeof bv === "number") {
-        cmp = av - bv;
-      } else {
-        const sa = av == null ? "" : String(av);
-        const sb = bv == null ? "" : String(bv);
-        cmp = sa.localeCompare(sb, undefined, { numeric: true });
+      const av = column.sortAccessor!(a);
+      const bv = column.sortAccessor!(b);
+
+      if (av == null && bv == null) return 0;
+      if (av == null) return sort.desc ? 1 : -1;
+      if (bv == null) return sort.desc ? -1 : 1;
+
+      if (av instanceof Date && bv instanceof Date) {
+        const delta = av.getTime() - bv.getTime();
+        return sort.desc ? -delta : delta;
       }
-      return sort.desc ? -cmp : cmp;
+
+      if (typeof av === "number" && typeof bv === "number") {
+        return sort.desc ? bv - av : av - bv;
+      }
+
+      const sa = String(av);
+      const sb = String(bv);
+      return sort.desc
+        ? sb.localeCompare(sa, undefined, { numeric: true })
+        : sa.localeCompare(sb, undefined, { numeric: true });
     });
     return copy;
   }, [filtered, columns, sort]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-
   const pageRows = React.useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return sorted.slice(start, start + pageSize);
@@ -330,93 +243,98 @@ function DataTable({
 
   React.useEffect(() => {
     setPage(1);
-  }, [q, pageSize]);
+  }, [search, pageSize]);
 
-  const exportCSV = () => {
-    const headers = visibleColumns.map((c) => c.header);
-    const getCell = (r: Row, c: ColumnDef<Row>): string => {
-      const id = String(c.id);
-      switch (id) {
-        case "status":
-          return r.status;
-        case "version":
-          return `v${r.version}`;
-        case "title":
-          return r.title;
-        case "published_at":
-          return formatDatePH(r.published_at);
-        case "created_at":
-          return formatDatePH(r.created_at);
-        case "updated_at":
-          return formatDatePH(r.updated_at);
-        case "draft_owner":
-          return r.draft_owner ?? "—";
-        case "diff_link":
-          return r.diff_link;
-        default:
-          return "";
-      }
-    };
-    const lines = [
-      headers.map(csvCell).join(","),
-      ...sorted.map((r) =>
-        visibleColumns.map((c) => csvCell(getCell(r, c))).join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([lines], { type: "text/csv;charset=utf-8;" });
+  const handleSort = (id: string) => {
+    setSort((prev) =>
+      prev.id === id ? { id, desc: !prev.desc } : { id, desc: false }
+    );
+  };
+
+  const exportCsv = () => {
+    const headers = visibleColumns.map((col) => col.header);
+
+    const lines = sorted.map((row) =>
+      visibleColumns.map((col) => {
+        const id = col.id;
+        switch (id) {
+          case "status":
+            return row.status;
+          case "version":
+            return `v${row.version}`;
+          case "title":
+            return row.title;
+          case "published_at":
+            return formatDate(row.published_at);
+          case "created_at":
+            return formatDate(row.created_at);
+          case "updated_at":
+            return formatDate(row.updated_at);
+          case "draft_owner":
+            return row.draft_owner ?? "--";
+          case "diff_link":
+            return row.diff_link;
+          default:
+            return "";
+        }
+      }),
+    );
+
+    const csv = [headers, ...lines]
+      .map((row) =>
+        row
+          .map((value) => {
+            const text = String(value ?? "");
+            return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+          })
+          .join(","),
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "survey-versions.csv";
-    a.click();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "survey-versions.csv";
+    anchor.click();
     URL.revokeObjectURL(url);
   };
 
+  const startIndex = sorted.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, sorted.length);
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Controls */}
-      <div className="flex items-center gap-2">
-        {/* Left: Search */}
-        <div className="relative w-[280px] sm:w-[340px]">
-          <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-[360px]">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            aria-label="Search survey versions"
-            placeholder="Search title, status, owner, v#…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search title, status, owner, version..."
             className="pl-8"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            aria-label="Search survey versions"
           />
         </div>
 
-        {/* Right: Page size + Export */}
         <div className="ml-auto flex items-center gap-2">
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => setPageSize(Number(v))}
-          >
+          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
             <SelectTrigger className="w-[120px] justify-between">
-              {/* Hide default value; render custom '10 / page' like the screenshot */}
-              <SelectValue className="sr-only" />
-              <div className="flex w-full items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span>{pageSize}</span>
-                  <span className="text-muted-foreground">/ page</span>
-                </div>
-              </div>
+              <SelectValue placeholder="Rows / page" />
             </SelectTrigger>
             <SelectContent>
-              {PAGE_SIZES.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option} / page
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <AlertDialog open={confirmExportOpen} onOpenChange={setConfirmExportOpen}>
+          <AlertDialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="size-4" />
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
                 Export
               </Button>
             </AlertDialogTrigger>
@@ -424,15 +342,15 @@ function DataTable({
               <AlertDialogHeader>
                 <AlertDialogTitle>Export visible rows?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will export the currently visible (filtered &amp; sorted) rows to CSV.
+                  This will export the current filtered and sorted rows as CSV.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    exportCSV();
-                    setConfirmExportOpen(false);
+                    exportCsv();
+                    setExportDialogOpen(false);
                   }}
                 >
                   Continue
@@ -443,79 +361,78 @@ function DataTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div
-        className="relative rounded-lg border bg-card"
-        role="region"
-        aria-label="Survey versions data table"
-      >
+      <div className="rounded-lg border bg-card">
         <div className="max-h-[620px] overflow-auto">
-          <Table>
+          <Table className="min-w-full">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                {visibleColumns.map((c) => {
-                  const id = String(c.id);
-                  const isActive = sort.id === id;
+                {visibleColumns.map((column) => {
+                  const isActive = sort.id === column.id;
                   return (
                     <TableHead
-                      key={id}
-                      className={[
-                        "whitespace-nowrap",
-                        c.width ?? "",
-                        "cursor-pointer select-none",
-                      ].join(" ")}
-                      onClick={() => onHeaderClick(id)}
+                      key={column.id}
+                      className={cn(
+                        "whitespace-nowrap text-sm font-medium",
+                        column.width,
+                        column.sortAccessor && "cursor-pointer select-none"
+                      )}
                       aria-sort={
-                        isActive ? (sort.desc ? "descending" : "ascending") : "none"
+                        column.sortAccessor
+                          ? isActive
+                            ? sort.desc
+                              ? "descending"
+                              : "ascending"
+                            : "none"
+                          : undefined
                       }
+                      onClick={() => column.sortAccessor && handleSort(column.id)}
                     >
-                      <div className="inline-flex items-center gap-1">
-                        {c.header}
-                        <ArrowUpDown
-                          className={[
-                            "size-3.5 text-muted-foreground",
-                            isActive ? "opacity-100" : "opacity-40",
-                          ].join(" ")}
-                        />
-                      </div>
+                      <span className="inline-flex items-center gap-1">
+                        {column.header}
+                        {column.sortAccessor && (
+                          <ArrowUpDown
+                            className={cn(
+                              "h-3.5 w-3.5 text-muted-foreground transition-opacity",
+                              isActive ? "opacity-100" : "opacity-40"
+                            )}
+                          />
+                        )}
+                      </span>
                     </TableHead>
                   );
                 })}
               </TableRow>
             </TableHeader>
-
             <TableBody>
               {pageRows.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={visibleColumns.length}
-                    className="h-24 text-center text-sm text-muted-foreground"
+                    className="h-32 text-center text-sm text-muted-foreground"
                   >
-                    — No results —
+                    No survey versions found.
                   </TableCell>
                 </TableRow>
               ) : (
-                pageRows.map((r) => (
+                pageRows.map((row) => (
                   <TableRow
-                    key={r.id}
+                    key={row.id}
                     tabIndex={0}
-                    className="even:bg-muted/40 hover:bg-accent/40 focus-visible:outline-2"
-                    style={
-                      highlightRows
-                        ? { backgroundColor: "hsl(var(--chart-1) / 0.30)" }
-                        : undefined
-                    }
+                    className={cn(
+                      "transition-colors focus-visible:outline focus-visible:outline-primary/60",
+                      highlightRows ? "odd:bg-muted/40" : undefined
+                    )}
                   >
-                    {visibleColumns.map((c) => (
+                    {visibleColumns.map((column) => (
                       <TableCell
-                        key={String(c.id)}
-                        className={[
-                          "py-3 align-middle text-sm",
-                          c.width ?? "",
-                          String(c.id) === "title" ? "pr-8" : "",
-                        ].join(" ")}
+                        key={column.id}
+                        className={cn(
+                          "py-3 text-sm align-middle",
+                          column.width,
+                          column.id === "title" && "pr-8"
+                        )}
                       >
-                        {c.accessor(r)}
+                        {column.accessor(row)}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -525,43 +442,37 @@ function DataTable({
           </Table>
         </div>
 
-        {/* Footer: pagination (unchanged) */}
-        <div className="flex flex-col items-center justify-between gap-2 border-t p-3 text-sm sm:flex-row">
-          <div className="text-muted-foreground">
+        <div className="flex flex-col items-center justify-between gap-2 border-t px-3 py-2 text-sm text-muted-foreground sm:flex-row">
+          <div>
             Showing{" "}
-            <span className="font-medium">
-              {sorted.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-              –
-              {Math.min(currentPage * pageSize, sorted.length)}
+            <span className="font-medium text-foreground">
+              {startIndex === 0 ? 0 : startIndex}–{endIndex}
             </span>{" "}
-            of <span className="font-medium">{formatWords(sorted.length)}</span>
+            of{" "}
+            <span className="font-medium text-foreground">
+              {formatNumber(sorted.length)}
+            </span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(1)}
-              disabled={currentPage === 1}
-            >
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={currentPage === 1}>
               First
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
             >
               Prev
             </Button>
-            <span className="min-w-[120px] text-center">
-              Page <span className="font-medium">{currentPage}</span> of{" "}
-              <span className="font-medium">{totalPages}</span>
+            <span className="px-2">
+              Page <span className="font-medium text-foreground">{currentPage}</span> of{" "}
+              <span className="font-medium text-foreground">{totalPages}</span>
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
             >
               Next
@@ -581,18 +492,15 @@ function DataTable({
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────────
-   Main export with data fetching
-────────────────────────────────────────────────────────────────────────────── */
-
 export default function SurveyVersions({ highlightRows = true }: Props) {
-  const [rows, setRows] = React.useState<Row[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(true);
+  const [rows, setRows] = React.useState<SurveyVersionRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    const load = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -600,50 +508,53 @@ export default function SurveyVersions({ highlightRows = true }: Props) {
           "/api/superadmin/reviews/survey-versions?page=1&pageSize=500&sortBy=updated_at&sortDir=desc",
           { cache: "no-store" }
         );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: ApiResponse = await res.json();
-        if (!cancelled) setRows(Array.isArray(data.rows) ? data.rows : []);
-      } catch {
+        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+        const payload: ApiResponse = await res.json();
+        if (!cancelled) {
+          setRows(Array.isArray(payload.rows) ? payload.rows : []);
+        }
+      } catch (err) {
         if (!cancelled) setError("Failed to load survey versions.");
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    };
+
+    void load();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const initialSort = { id: "updated_at", desc: true };
+  const initialSort: SortState = { id: "updated_at", desc: true };
 
   return (
     <TooltipProvider delayDuration={150}>
-      <Card className="md:col-span-8 h-90 rounded-xl border bg-card shadow-sm px-4">
-        <CardHeader className="sticky top-0 z-20 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <Card className="md:col-span-8 border bg-card shadow-sm">
+        <CardHeader>
           <CardTitle>Survey Versions</CardTitle>
           <CardDescription>
-            Governance view of survey lifecycle — track{" "}
-            <span className="font-medium">Draft → Published → Archived</span>,
-            who created drafts, and when versions went live.
+            Governance view of survey lifecycle &mdash; track Draft &rarr; Published &rarr; Archived, who created drafts, and when versions went live.
           </CardDescription>
         </CardHeader>
-
-        <CardContent className="pt-4">
+        <CardContent>
           {loading ? (
             <div className="space-y-3">
-              <div className="h-9 w-full animate-pulse rounded-md bg-muted/50" />
-              <div className="h-[420px] w-full animate-pulse rounded-md bg-muted/40" />
+              <div className="h-9 w-full animate-pulse rounded-md bg-muted/40" />
+              <div className="h-[380px] w-full animate-pulse rounded-md bg-muted/30" />
             </div>
           ) : error ? (
-            <div className="text-sm text-destructive">{error}</div>
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
           ) : rows.length === 0 ? (
-            <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-              — No results —
+            <div className="rounded-md border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+              No survey versions available.
             </div>
           ) : (
             <DataTable
               rows={rows}
-              columns={COLUMNS}
+              columns={COLUMN_DEFS}
               initialSort={initialSort}
               highlightRows={highlightRows}
             />

@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -33,10 +33,9 @@ import type {
   UserSettings,
   UserProfilePreview,
 } from "@/types/settings";
-import {
-  DEFAULT_USER_SETTINGS,
-  SAMPLE_USER_PROFILE,
-} from "@/types/settings";
+import { DEFAULT_USER_SETTINGS } from "@/types/settings";
+import { writeCachedUser } from "@/lib/user-cache";
+import { persistDefaultDateRange } from "@/lib/dashboard-filters";
 
 /* ---------- Helpers ---------- */
 
@@ -48,7 +47,6 @@ const themeChoiceToNextThemes = (t: ThemeChoice): "light" | "dark" | "system" =>
 const ProfileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  // email/role/status are read-only, not validated for submission here
 });
 
 const PasswordSchema = z
@@ -68,6 +66,7 @@ const PreferencesSchema = z.object({
     z.literal("LAST_7"),
     z.literal("LAST_30"),
     z.literal("LAST_90"),
+    z.literal("LAST_365"),
   ]),
 });
 
@@ -78,11 +77,11 @@ type PreferencesValues = z.infer<typeof PreferencesSchema>;
 /* ---------- Component ---------- */
 
 export default function UserSettingsForm() {
-  // Fake profile data (no fetch).
-  const profile: UserProfilePreview = SAMPLE_USER_PROFILE;
-
-  // Theme interop (applies immediately on select change)
   const { setTheme, theme: activeTheme } = useTheme();
+
+  const [profile, setProfile] = React.useState<UserProfilePreview | null>(null);
+  const [preferences, setPreferences] = React.useState<UserSettings | null>(null);
+  const [initializing, setInitializing] = React.useState(true);
 
   // Profile form
   const {
@@ -93,8 +92,8 @@ export default function UserSettingsForm() {
   } = useForm<ProfileValues>({
     resolver: zodResolver(ProfileSchema),
     defaultValues: {
-      firstName: profile.firstName,
-      lastName: profile.lastName,
+      firstName: "",
+      lastName: "",
     },
   });
 
@@ -128,52 +127,242 @@ export default function UserSettingsForm() {
     },
   });
 
-  // Apply theme immediately on change (optimistic)
+  // Apply theme immediately on change (optimistic preview)
   const themeValue = watchPrefs("theme");
   React.useEffect(() => {
     if (!themeValue) return;
-    setTheme(themeChoiceToNextThemes(themeValue));
-    // Note: still require Save to "persist" later; currently just logs + toast.
-  }, [themeValue, setTheme]);
+    if (initializing) return;
+    const next = themeChoiceToNextThemes(themeValue);
+    const current = activeTheme ?? "system";
+    if (next === current) return;
+    setTheme(next);
+  }, [themeValue, setTheme, initializing, activeTheme]);
+
+  // Bootstrap profile + preferences from the API
+  React.useEffect(() => {
+    let ignore = false;
+
+    async function bootstrap() {
+      try {
+        const [meRes, prefsRes] = await Promise.all([
+          fetch("/api/auth/me", { cache: "no-store" }),
+          fetch("/api/admin/settings/preferences", { cache: "no-store" }),
+        ]);
+
+        if (!ignore) {
+          if (meRes.ok) {
+            const json = await meRes.json().catch(() => null);
+            const data = json?.data;
+            if (data) {
+              const nextProfile: UserProfilePreview = {
+                id: Number(data.id ?? 0),
+                firstName: String(data.first_name ?? ""),
+                lastName: String(data.last_name ?? ""),
+                email: String(data.email ?? ""),
+                role: (data.role ?? "ADMIN") as UserProfilePreview["role"],
+                status: (data.status ?? "ACTIVE") as UserProfilePreview["status"],
+              };
+              setProfile(nextProfile);
+              resetProfile({
+                firstName: nextProfile.firstName,
+                lastName: nextProfile.lastName,
+              });
+            }
+          } else if (meRes.status === 401) {
+            toast.error("Session expired. Please sign in again.", { id: "settings-auth" });
+          } else {
+            const errorPayload = await meRes.json().catch(() => ({}));
+            const message = errorPayload?.error ?? "Failed to load profile.";
+            toast.error(message);
+          }
+
+          if (prefsRes.ok) {
+            const json = await prefsRes.json().catch(() => null);
+            const data = json?.data as UserSettings | undefined;
+            const nextPrefs: UserSettings = data ?? {
+              ...DEFAULT_USER_SETTINGS,
+            };
+            setPreferences(nextPrefs);
+            resetPrefs({
+              theme: nextPrefs.theme,
+              defaultDateRange: nextPrefs.defaultDateRange,
+            });
+          } else {
+            const errorPayload = await prefsRes.json().catch(() => ({}));
+            const message = errorPayload?.error ?? "Failed to load preferences. Using defaults.";
+            toast.warning(message);
+            setPreferences({
+              ...DEFAULT_USER_SETTINGS,
+            });
+            resetPrefs({
+              theme: DEFAULT_USER_SETTINGS.theme,
+              defaultDateRange: DEFAULT_USER_SETTINGS.defaultDateRange,
+            });
+          }
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error("[settings] bootstrap failed", error);
+          toast.error("Unable to load settings. Please refresh and try again.");
+          setPreferences({
+            ...DEFAULT_USER_SETTINGS,
+          });
+          resetPrefs({
+            theme: DEFAULT_USER_SETTINGS.theme,
+            defaultDateRange: DEFAULT_USER_SETTINGS.defaultDateRange,
+          });
+        }
+      } finally {
+        if (!ignore) {
+          setInitializing(false);
+        }
+      }
+    }
+
+    void bootstrap();
+    return () => {
+      ignore = true;
+    };
+  }, [resetPrefs, resetProfile]);
 
   /* ---------- Handlers ---------- */
 
-  const onSaveProfile = (values: ProfileValues) => {
-    // TODO: wire PUT /api/account/profile with { first_name, last_name }
-    console.log("PROFILE_SAVE", values);
-    toast.success("Profile saved (UI only).");
-    resetProfile(values);
+  const onSaveProfile = async (values: ProfileValues) => {
+    if (initializing) return;
+    try {
+      const res = await fetch("/api/admin/settings/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: values.firstName.trim(),
+          last_name: values.lastName.trim(),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = json?.error ?? "Failed to update profile.";
+        toast.error(message);
+        return;
+      }
+
+      const data = json?.data;
+      const nextProfile: UserProfilePreview = {
+        id: Number(data?.id ?? profile?.id ?? 0),
+        firstName: String(data?.first_name ?? values.firstName ?? ""),
+        lastName: String(data?.last_name ?? values.lastName ?? ""),
+        email: String(data?.email ?? profile?.email ?? ""),
+        role: (data?.role ?? profile?.role ?? "ADMIN") as UserProfilePreview["role"],
+        status: (data?.status ?? profile?.status ?? "ACTIVE") as UserProfilePreview["status"],
+      };
+
+      setProfile(nextProfile);
+      resetProfile({
+        firstName: nextProfile.firstName,
+        lastName: nextProfile.lastName,
+      });
+
+      if (nextProfile.id && nextProfile.email) {
+        writeCachedUser({
+          id: nextProfile.id,
+          firstName: nextProfile.firstName,
+          lastName: nextProfile.lastName,
+          email: nextProfile.email,
+          role: nextProfile.role,
+        });
+      }
+
+      toast.success("Profile saved.");
+    } catch (error) {
+      console.error("[settings] profile update failed", error);
+      toast.error("Failed to update profile. Please try again.");
+    }
   };
 
-  const onSavePassword = (values: PasswordValues) => {
-    // TODO: wire PUT /api/account/password
-    console.log("PASSWORD_CHANGE", values);
-    toast.success("Password updated (UI only).");
-    resetPassword({ current: "", next: "", confirm: "" });
+  const onSavePassword = async (values: PasswordValues) => {
+    if (initializing) return;
+    try {
+      const res = await fetch("/api/admin/settings/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current: values.current,
+          next: values.next,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = json?.error ?? "Failed to update password.";
+        toast.error(message);
+        return;
+      }
+      resetPassword({ current: "", next: "", confirm: "" });
+      toast.success("Password updated.");
+    } catch (error) {
+      console.error("[settings] password update failed", error);
+      toast.error("Failed to update password. Please try again.");
+    }
   };
 
-  const onSavePreferences = (values: PreferencesValues) => {
-    // TODO: wire PUT /api/account/settings
+  const onSavePreferences = async (values: PreferencesValues) => {
+    if (initializing) return;
     const payload: UserSettings = {
       theme: values.theme as ThemeChoice,
       defaultDateRange: values.defaultDateRange as DateRangeChoice,
     };
-    console.log("SETTINGS_SAVE", payload);
-    toast.success("Preferences saved (UI only).");
-    resetPrefs(values);
+    try {
+      const res = await fetch("/api/admin/settings/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = json?.error ?? "Failed to save preferences.";
+        toast.error(message);
+        if (preferences) {
+          resetPrefs({
+            theme: preferences.theme,
+            defaultDateRange: preferences.defaultDateRange,
+          });
+        }
+        return;
+      }
+
+      const data = json?.data as UserSettings | undefined;
+      const saved: UserSettings = data ?? {
+        ...payload,
+        adminId: preferences?.adminId,
+      };
+      setPreferences(saved);
+      resetPrefs({
+        theme: saved.theme,
+        defaultDateRange: saved.defaultDateRange,
+      });
+      persistDefaultDateRange(saved.defaultDateRange);
+      toast.success("Preferences saved.");
+    } catch (error) {
+      console.error("[settings] preferences update failed", error);
+      toast.error("Failed to save preferences. Please try again.");
+      if (preferences) {
+        resetPrefs({
+          theme: preferences.theme,
+          defaultDateRange: preferences.defaultDateRange,
+        });
+      }
+    }
   };
 
   /* ---------- UI ---------- */
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 space-y-6">
+    <div className="mx-auto w-full max-w-5xl flex flex-col px-4 py-6 space-y-6">
       {/* Profile */}
-      <Card className="max-w-2xl">
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>Profile</CardTitle>
           <CardDescription>Manage your name and view account details.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6">
           <form
             className="space-y-6"
             onSubmit={handleSubmitProfile(onSaveProfile)}
@@ -187,9 +376,10 @@ export default function UserSettingsForm() {
                 >
                   First name
                 </label>
-                <Input
+                <Input className="border-2 border-primary/30 shadow-lg"
                   id="firstName"
                   placeholder="First name"
+                  disabled={initializing || profileBusy}
                   {...registerProfile("firstName")}
                 />
                 {profileErrors.firstName && (
@@ -206,9 +396,10 @@ export default function UserSettingsForm() {
                 >
                   Last name
                 </label>
-                <Input
+                <Input className="border-2 border-primary/30 shadow-lg"
                   id="lastName"
                   placeholder="Last name"
+                  disabled={initializing || profileBusy}
                   {...registerProfile("lastName")}
                 />
                 {profileErrors.lastName && (
@@ -224,13 +415,18 @@ export default function UserSettingsForm() {
                 <label htmlFor="email" className="mb-1 block text-sm font-medium">
                   Email
                 </label>
-                <Input id="email" value={profile.email} readOnly disabled />
+                <Input className="border-2 border-primary/30 shadow-lg"
+                  id="email"
+                  value={profile?.email ?? ""}
+                  readOnly
+                  disabled
+                />
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-medium">Role</span>
                 <div>
-                  <Badge variant="secondary">{profile.role}</Badge>
+                  <Badge variant="secondary">{profile?.role ?? "..."}</Badge>
                 </div>
               </div>
             </div>
@@ -240,16 +436,16 @@ export default function UserSettingsForm() {
                 <span className="text-sm font-medium">Status</span>
                 <div>
                   <Badge
-                    variant={profile.status === "ACTIVE" ? "default" : "outline"}
+                    variant={profile?.status === "ACTIVE" ? "default" : "outline"}
                   >
-                    {profile.status}
+                    {profile?.status ?? "..."}
                   </Badge>
                 </div>
               </div>
             </div>
 
             <CardFooter className="px-0">
-              <Button type="submit" disabled={profileBusy}>
+              <Button type="submit" disabled={profileBusy || initializing}>
                 Save Profile
               </Button>
             </CardFooter>
@@ -258,12 +454,12 @@ export default function UserSettingsForm() {
       </Card>
 
       {/* Security */}
-      <Card className="max-w-2xl">
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>Security</CardTitle>
-          <CardDescription>Change your password (UI only; no network calls).</CardDescription>
+          <CardDescription>Change your password.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6">
           <form
             className="space-y-6"
             onSubmit={handleSubmitPassword(onSavePassword)}
@@ -274,11 +470,12 @@ export default function UserSettingsForm() {
                 <label htmlFor="current" className="mb-1 block text-sm font-medium">
                   Current password
                 </label>
-                <Input
+                <Input className="border-2 border-primary/30 shadow-lg"
                   id="current"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="********"
                   autoComplete="current-password"
+                  disabled={initializing || pwBusy}
                   {...registerPassword("current")}
                 />
                 {pwErrors.current && (
@@ -292,11 +489,12 @@ export default function UserSettingsForm() {
                 <label htmlFor="next" className="mb-1 block text-sm font-medium">
                   New password
                 </label>
-                <Input
+                <Input className="border-2 border-primary/30 shadow-lg"
                   id="next"
                   type="password"
                   placeholder="At least 8 characters"
                   autoComplete="new-password"
+                  disabled={initializing || pwBusy}
                   {...registerPassword("next")}
                 />
                 {pwErrors.next && (
@@ -313,11 +511,12 @@ export default function UserSettingsForm() {
                 >
                   Confirm new password
                 </label>
-                <Input
+                <Input className="border-2 border-primary/30 shadow-lg"
                   id="confirm"
                   type="password"
                   placeholder="Re-enter new password"
                   autoComplete="new-password"
+                  disabled={initializing || pwBusy}
                   {...registerPassword("confirm")}
                 />
                 {pwErrors.confirm && (
@@ -329,7 +528,7 @@ export default function UserSettingsForm() {
             </div>
 
             <CardFooter className="px-0">
-              <Button type="submit" disabled={pwBusy}>
+              <Button type="submit" disabled={pwBusy || initializing}>
                 Update Password
               </Button>
             </CardFooter>
@@ -338,14 +537,14 @@ export default function UserSettingsForm() {
       </Card>
 
       {/* Preferences */}
-      <Card className="max-w-2xl">
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>Preferences</CardTitle>
           <CardDescription>
             Choose your default theme and starting dashboard date range.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6">
           <form
             className="space-y-6"
             onSubmit={handleSubmitPrefs(onSavePreferences)}
@@ -364,8 +563,9 @@ export default function UserSettingsForm() {
                     <Select
                       value={field.value}
                       onValueChange={(v) => field.onChange(v as ThemeChoice)}
+                      disabled={initializing || prefsBusy}
                     >
-                      <SelectTrigger id="theme">
+                      <SelectTrigger id="theme" disabled={initializing || prefsBusy}>
                         <SelectValue placeholder="Select theme" />
                       </SelectTrigger>
                       <SelectContent>
@@ -382,7 +582,7 @@ export default function UserSettingsForm() {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Applies immediately (optimistic). Current: <code>{activeTheme ?? "system"}</code>
+                  Applies immediately (preview). Current: <code>{activeTheme ?? "system"}</code>
                 </p>
               </div>
 
@@ -403,14 +603,19 @@ export default function UserSettingsForm() {
                       onValueChange={(v) =>
                         field.onChange(v as DateRangeChoice)
                       }
+                      disabled={initializing || prefsBusy}
                     >
-                      <SelectTrigger id="defaultDateRange">
+                      <SelectTrigger
+                        id="defaultDateRange"
+                        disabled={initializing || prefsBusy}
+                      >
                         <SelectValue placeholder="Select range" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="LAST_7">Last 7 days</SelectItem>
                         <SelectItem value="LAST_30">Last 30 days</SelectItem>
                         <SelectItem value="LAST_90">Last 90 days</SelectItem>
+                        <SelectItem value="LAST_365">Last 12 months</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -421,13 +626,13 @@ export default function UserSettingsForm() {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Used only as the starting window for dashboards later.
+                  Used as the starting window for dashboards.
                 </p>
               </div>
             </div>
 
             <CardFooter className="px-0">
-              <Button type="submit" disabled={prefsBusy}>
+              <Button type="submit" disabled={prefsBusy || initializing}>
                 Save Preferences
               </Button>
             </CardFooter>

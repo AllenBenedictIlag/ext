@@ -6,13 +6,13 @@ import RequiredCoverage from "@/components/superadmin/data-quality/required-cove
 
 export default function DataQualityPage() {
     return (
-      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <div className="max-h-dvh flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
             <CompletionMatrix/>
             <RequiredCoverage/>
-            <AnswerDensity height="h-120" cardClassName="md:col-span-4"/>
+            <AnswerDensity height="h-95" cardClassName="md:col-span-4"/>
             <OptionBalance/>
-            <AnomaliesTable/>
+            {/* <AnomaliesTable/> */}
         </div>
       </div>
     )

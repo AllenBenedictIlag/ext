@@ -37,6 +37,8 @@ type SurveyMeta = {
   submitted_for_review_at: string | null;
 };
 
+type AuthContext = { id: number; role: "ADMIN" | "SUPER_ADMIN" };
+
 type BuilderPayload = {
   working: { survey: SurveyMeta; questions: QuestionRow[] } | null;
   latestPublished: {
@@ -143,12 +145,12 @@ function mapSurvey(row: any): SurveyMeta {
 
 async function fetchSurvey(
   conn: PoolConnection,
-  statuses: SurveyStatus[]
+  statuses: SurveyStatus[],
+  auth?: AuthContext
 ): Promise<SurveyMeta | null> {
   if (!statuses.length) return null;
-  const placeholders = statuses.map(() => "?").join(",");
-  const [rows] = await conn.query<any[]>(
-    `
+  const scoped = auth && auth.role !== "SUPER_ADMIN";
+  const baseSelect = `
     SELECT
       s.id,
       s.title,
@@ -164,14 +166,36 @@ async function fetchSurvey(
       sb.email AS submitted_by_email
     FROM surveys s
     LEFT JOIN admins sb ON sb.id = s.submitted_by
-    WHERE s.status IN (${placeholders})
-    ORDER BY FIELD(s.status, 'DRAFT', 'PENDING_REVIEW'), s.id DESC
-    LIMIT 1
-    `,
-    statuses
-  );
-  if (!Array.isArray(rows) || !rows[0]) return null;
-  return mapSurvey(rows[0]);
+  `;
+
+  for (const status of statuses) {
+    const params: Array<string | number> = [status];
+    let where = "s.status = ?";
+
+    if (scoped) {
+      if (status === "DRAFT") {
+        where += " AND (s.created_by = ? OR s.created_by IS NULL)";
+        params.push(auth!.id);
+      } else if (status === "PENDING_REVIEW") {
+        where += " AND s.submitted_by = ?";
+        params.push(auth!.id);
+      }
+    }
+
+    const [rows] = await conn.query<any[]>(
+      `
+      ${baseSelect}
+      WHERE ${where}
+      ORDER BY s.id DESC
+      LIMIT 1
+      `,
+      params
+    );
+    if (Array.isArray(rows) && rows[0]) {
+      return mapSurvey(rows[0]);
+    }
+  }
+  return null;
 }
 
 async function fetchQuestions(
@@ -399,12 +423,22 @@ async function insertQuestions(
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  let auth: AuthContext;
+  try {
+    auth = await requireAuth(req);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    throw error;
+  }
+
   const pool = getPool();
   const conn = await pool.getConnection();
 
   try {
-    const workingSurvey = await fetchSurvey(conn, ["DRAFT", "PENDING_REVIEW"]);
+    const workingSurvey = await fetchSurvey(conn, ["DRAFT", "PENDING_REVIEW"], auth);
     const latestPublished = await fetchSurvey(conn, ["PUBLISHED"]);
 
     const workingQuestions = workingSurvey ? await fetchQuestions(conn, workingSurvey.id) : [];
@@ -507,14 +541,26 @@ export async function POST(req: NextRequest) {
     try {
       await conn.beginTransaction();
       const [rows] = await conn.query<any[]>(
-        `SELECT id, status FROM surveys WHERE id = ? FOR UPDATE`,
+        `SELECT id, status, created_by, submitted_by FROM surveys WHERE id = ? FOR UPDATE`,
         [withdrawPayload.surveyId]
       );
       if (!Array.isArray(rows) || !rows[0]) {
         await conn.rollback();
         return NextResponse.json({ error: "Draft not found" }, { status: 404 });
       }
-      const survey = rows[0] as { status: SurveyStatus };
+      const survey = rows[0] as {
+        status: SurveyStatus;
+        created_by: number | null;
+        submitted_by: number | null;
+      };
+      if (
+        auth.role !== "SUPER_ADMIN" &&
+        survey.submitted_by !== auth.id &&
+        survey.created_by !== auth.id
+      ) {
+        await conn.rollback();
+        return NextResponse.json({ error: "You are not allowed to withdraw this survey." }, { status: 403 });
+      }
       if (survey.status !== "PENDING_REVIEW") {
         await conn.rollback();
         return NextResponse.json({ error: "Only pending surveys can be withdrawn" }, { status: 409 });
@@ -588,14 +634,29 @@ export async function POST(req: NextRequest) {
 
     if (typeof submitPayload.surveyId === "number" && Number.isFinite(submitPayload.surveyId)) {
       const [surveyRows] = await conn.query<any[]>(
-        `SELECT id, title, status FROM surveys WHERE id = ? FOR UPDATE`,
+        `SELECT id, title, status, version, created_by, submitted_by FROM surveys WHERE id = ? FOR UPDATE`,
         [submitPayload.surveyId]
       );
       if (!Array.isArray(surveyRows) || !surveyRows[0]) {
         await conn.rollback();
         return NextResponse.json({ error: "Draft not found" }, { status: 404 });
       }
-      const row = surveyRows[0] as { id: number; title: string; status: SurveyStatus };
+      const row = surveyRows[0] as {
+        id: number;
+        title: string;
+        status: SurveyStatus;
+        version: number | null;
+        created_by: number | null;
+        submitted_by: number | null;
+      };
+      if (
+        auth.role !== "SUPER_ADMIN" &&
+        row.created_by !== auth.id &&
+        row.submitted_by !== auth.id
+      ) {
+        await conn.rollback();
+        return NextResponse.json({ error: "You do not have access to edit this draft." }, { status: 403 });
+      }
       if (row.status !== "DRAFT") {
         await conn.rollback();
         return NextResponse.json({ error: "Only drafts can be submitted" }, { status: 409 });
@@ -616,7 +677,7 @@ export async function POST(req: NextRequest) {
         `,
         [auth.id, auth.id, surveyId]
       );
-      version = 0;
+      version = Number(row.version ?? 0);
     } else {
       if (!desiredTitle) {
         await conn.rollback();
@@ -624,13 +685,36 @@ export async function POST(req: NextRequest) {
       }
 
       const [duplicateRows] = await conn.query<any[]>(
-        `SELECT id FROM surveys WHERE title = ? AND version = 0 AND status IN ('DRAFT','PENDING_REVIEW') LIMIT 1`,
-        [desiredTitle]
+        `
+        SELECT id
+        FROM surveys
+        WHERE title = ?
+          AND status IN ('DRAFT','PENDING_REVIEW')
+          AND (created_by = ? OR submitted_by = ?)
+        LIMIT 1
+        `,
+        [desiredTitle, auth.id, auth.id]
       );
       if (Array.isArray(duplicateRows) && duplicateRows[0]) {
         await conn.rollback();
         return NextResponse.json({ error: "A draft already exists for this title." }, { status: 409 });
       }
+
+      const [latestVersionRows] = await conn.query<any[]>(
+        `
+        SELECT version
+        FROM surveys
+        WHERE title = ?
+        ORDER BY version DESC
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [desiredTitle]
+      );
+      const nextVersion =
+        Array.isArray(latestVersionRows) && latestVersionRows[0]
+          ? Number(latestVersionRows[0].version) + 1
+          : 1;
 
       const [result] = await conn.execute<any>(
         `
@@ -645,11 +729,12 @@ export async function POST(req: NextRequest) {
           approved_at,
           effective_at
         )
-        VALUES (?, ?, 'PENDING_REVIEW', 0, ?, NOW(), NULL, NULL, NULL)
+        VALUES (?, ?, 'PENDING_REVIEW', ?, ?, NOW(), NULL, NULL, NULL)
         `,
-        [desiredTitle, auth.id, auth.id]
+        [desiredTitle, auth.id, nextVersion, auth.id]
       );
       surveyId = Number(result.insertId);
+      version = nextVersion;
     }
 
     await insertQuestions(conn, surveyId, normalised);
@@ -669,8 +754,12 @@ export async function POST(req: NextRequest) {
     await conn.rollback();
     console.error("[questions-builder] submit failed", error);
     if (error?.code === "ER_DUP_ENTRY") {
+      const message =
+        typeof error?.sqlMessage === "string" && error.sqlMessage.includes("ux_survey_title_version")
+          ? "Another draft already exists for this survey title. Please switch to Edit Current or choose a different title."
+          : "Duplicate question key detected in database.";
       return NextResponse.json(
-        { error: "Duplicate question key detected in database." },
+        { error: message },
         { status: 409 }
       );
     }

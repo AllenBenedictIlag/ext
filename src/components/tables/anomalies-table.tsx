@@ -282,19 +282,20 @@ function DataTable<T extends Record<string, unknown>>({
   // ----- Export flow (Two-step with PDF that excludes Comments) -----
   const [exportOpen, setExportOpen] = React.useState(false);   // Step 1: choose preset + format
   const [confirmOpen, setConfirmOpen] = React.useState(false); // Step 2: confirm
-  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
-  type ExportFormat = "CSV" | "PRINTABLE";
+  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90" | "LAST_365";
+  type ExportFormat = "CSV" | "PDF";
   const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
   const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
   const PRESET_LABEL: Record<ExportPreset, string> = {
-    FOLLOW_FILTER: "Follow the Custom Filter",
+    FOLLOW_FILTER: "Custom (use current filters)",
     LAST_7: "Last 7 days",
     LAST_30: "Last 30 days",
     LAST_90: "Last 3 months",
+    LAST_365: "Last 12 months",
   };
   const FORMAT_LABEL: Record<ExportFormat, string> = {
-    CSV: "CSV file",
-    PRINTABLE: "Printable table (PDF via print)",
+    CSV: "CSV (.csv)",
+    PDF: "PDF (.pdf)",
   };
 
   const visibleColumns = React.useMemo(
@@ -539,6 +540,7 @@ function DataTable<T extends Record<string, unknown>>({
       case "LAST_7": return "last7d";
       case "LAST_30": return "last30d";
       case "LAST_90": return "last3mo";
+      case "LAST_365": return "last12mo";
       default: return "custom";
     }
   }
@@ -636,7 +638,7 @@ function DataTable<T extends Record<string, unknown>>({
               <AlertDialogHeader>
                 <AlertDialogTitle>Export anomalies</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose the time window and format. This dataset has no date column, so presets will export the current filtered &amp; sorted rows.
+                  Choose the time window and format. This dataset has no date column, so presets export the current filtered &amp; sorted rows. "Custom" always uses the current filters &amp; sort.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
@@ -648,10 +650,11 @@ function DataTable<T extends Record<string, unknown>>({
                       <SelectValue placeholder="Select range" />
                     </SelectTrigger>
                     <SelectContent className="border-2 border-primary/30 shadow-lg">
-                      <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                      <SelectItem value="FOLLOW_FILTER">Custom (use current filters)</SelectItem>
                       <SelectItem value="LAST_7">Last 7 days</SelectItem>
                       <SelectItem value="LAST_30">Last 30 days</SelectItem>
                       <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                      <SelectItem value="LAST_365">Last 12 months</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -664,7 +667,7 @@ function DataTable<T extends Record<string, unknown>>({
                     </SelectTrigger>
                     <SelectContent className="border-2 border-primary/30 shadow-lg">
                       <SelectItem value="CSV">CSV (.csv)</SelectItem>
-                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
+                      <SelectItem value="PDF">PDF (.pdf)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -924,3 +927,9 @@ export default function AnomaliesTable({ highlightRows = true }: AnomaliesTableP
     </Card>
   );
 }
+
+
+
+
+
+

@@ -2,11 +2,14 @@
 
 /* ---------- Enums & Types ---------- */
 export type ThemeChoice = "LIGHT" | "DARK" | "SYSTEM";
-export type DateRangeChoice = "LAST_7" | "LAST_30" | "LAST_90";
+export type DateRangeChoice = "LAST_7" | "LAST_30" | "LAST_90" | "LAST_365";
 
 export type UserSettings = {
+  adminId?: number;
   theme: ThemeChoice;
   defaultDateRange: DateRangeChoice;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {

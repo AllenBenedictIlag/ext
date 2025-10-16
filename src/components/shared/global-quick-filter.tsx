@@ -16,6 +16,8 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
+import { buildDefaultDateRange } from "@/lib/dashboard-filters";
+import type { DateRangeChoice } from "@/types/settings";
 
 /* ---------- Types ---------- */
 export type GlobalFilters = {
@@ -346,6 +348,93 @@ export function GlobalQuickFilter({
   React.useEffect(() => {
     if (open) setRangeDraft(rangeCommitted ?? null);
   }, [open, rangeCommitted]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hasUrlOverride = Boolean(searchParams.get("from") || searchParams.get("to"));
+    if (hasUrlOverride) return;
+
+    let storedFilters: string | null = null;
+    try {
+      storedFilters = localStorage.getItem(storageKey);
+    } catch {
+      storedFilters = null;
+    }
+    if (storedFilters) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/settings/preferences", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json().catch(() => null);
+        const choice = (json?.data?.defaultDateRange ?? null) as DateRangeChoice | null;
+        const range = buildDefaultDateRange(choice);
+        if (!range || cancelled) return;
+
+        const currentFrom = rangeCommitted?.from ? yyyymmdd(rangeCommitted.from) : null;
+        const currentTo = rangeCommitted?.to ? yyyymmdd(rangeCommitted.to) : null;
+        const nextFrom = yyyymmdd(range.from);
+        const nextTo = yyyymmdd(range.to);
+        if (currentFrom === nextFrom && currentTo === nextTo) return;
+
+        const filters: GlobalFilters = { from: nextFrom, to: nextTo, versionId: null };
+
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(filters));
+        } catch {
+          // ignore persistence failures
+        }
+
+        if (syncUrl) {
+          const sp = new URLSearchParams(Array.from(searchParams.entries()));
+          sp.set("from", filters.from);
+          sp.set("to", filters.to);
+          sp.delete("version");
+          router.replace(`?${sp.toString()}`);
+        }
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("dashboard:filters", { detail: filters }));
+        }
+        onChange?.(filters);
+
+        setRangeCommitted({ from: range.from, to: range.to });
+        setRangeDraft({ from: range.from, to: range.to });
+
+        const nextPreset: PresetKey | undefined =
+          choice === "LAST_7" ? "7d" :
+          choice === "LAST_30" ? "30d" :
+          choice === "LAST_90" ? "3mo" :
+          choice === "LAST_365" ? "12mo" :
+          undefined;
+
+        if (nextPreset) {
+          setMode("preset");
+          setPresetKey(nextPreset);
+          setLabelMode("custom");
+        } else {
+          setMode("custom");
+          setPresetKey(undefined);
+          setLabelMode("range");
+        }
+      } catch {
+        // ignore preference bootstrap failures
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    onChange,
+    rangeCommitted,
+    router,
+    searchParams,
+    storageKey,
+    syncUrl,
+  ]);
 
   const customButtonText =
     labelMode === "range" && committedFrom && committedTo

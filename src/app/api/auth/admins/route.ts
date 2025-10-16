@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getPool } from "@/lib/database";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { requireAdminSession } from "@/lib/api-auth";
 
 // ------- Zod Schemas -------
 const CreateAdminSchema = z.object({
@@ -11,7 +12,7 @@ const CreateAdminSchema = z.object({
   email: z.string().email().max(191).trim(),
   password: z.string().min(1).max(255), // TODO: hash later
   role: z.enum(["SUPER_ADMIN", "ADMIN"]).default("ADMIN"),
-  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("INACTIVE"),
 });
 
 const ListQuerySchema = z.object({
@@ -116,6 +117,19 @@ export async function POST(req: NextRequest) {
 
     const pool = getPool();
 
+    type AdminSession = Awaited<ReturnType<typeof requireAdminSession>>;
+    let session: AdminSession | null = null;
+    try {
+      session = await requireAdminSession(req);
+    } catch {
+      session = null;
+    }
+
+    const isSuperAdmin = session?.role === "SUPER_ADMIN";
+
+    const role = isSuperAdmin ? body.role : "ADMIN";
+    const status = isSuperAdmin ? body.status : "INACTIVE";
+
     // Ensure unique email
     const [existsRows] = await pool.query(
       `SELECT id FROM admins WHERE email = ? LIMIT 1`,
@@ -142,8 +156,8 @@ export async function POST(req: NextRequest) {
         body.last_name,
         body.email,
         body.password, // TODO: hash later
-        body.role,
-        body.status,
+        role,
+        status,
       ]
     );
 
@@ -174,10 +188,11 @@ export async function POST(req: NextRequest) {
 
     await recordAuditEvent({
       req,
+      actorAdminId: session?.id,
       action: "ROLE_CHANGE",
       targetType: "admin",
       targetId: createdId || body.email,
-      notes: `Created admin ${body.email} (role=${body.role}, status=${body.status})`,
+      notes: `Created admin ${body.email} (role=${role}, status=${status})`,
     });
 
     return ok({ data: createdAdmin }, 201);

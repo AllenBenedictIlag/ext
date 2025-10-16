@@ -17,6 +17,7 @@ import {
   IconUsers,
   IconHistory,
   IconReportAnalytics,
+  IconProgressAlert,
 } from "@tabler/icons-react";
 
 export type Role = "admin" | "superadmin";
@@ -36,7 +37,8 @@ export type IconKey =
   | "reviews"
   | "users"
   | "audit"
-  | "datahealth";
+  | "datahealth"
+  | "anomalities";
 
 export type NavItem = {
   title: string;
@@ -65,6 +67,7 @@ export const ICONS: Record<IconKey, ComponentType<any>> = {
   users: IconUsers,
   audit: IconHistory,
   datahealth: IconReportAnalytics,
+  anomalities: IconProgressAlert,
 };
 
 // 3) Grouped navigation data
@@ -107,9 +110,14 @@ export const SECTIONS_SUPERADMIN: NavSection[] = [
     label: "Data Health",
     items: [
       {
-        title: "Data Quality & Health",
+        title: "Data Quality",
         url: "/superadmin/data-quality",
         icon: "datahealth",
+      },
+      {
+        title: "Anomalities",
+        url: "/superadmin/anomalities",
+        icon: "anomalities",
       },
     ],
   },

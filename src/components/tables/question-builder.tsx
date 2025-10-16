@@ -141,8 +141,6 @@ const COLUMNS: ColumnConfig[] = [
   { id: "helpText", label: "Help Text", widthClass: "min-w-[220px]" },
 ];
 
-const ENTRY_STORAGE_KEY = "questions-builder-entry-choice";
-
 function generateTempId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -361,16 +359,6 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
   const { markDirty, markPristine } = useUnsavedChanges();
   const selectionNeeded = entryChoice === null;
   const noPublishedAvailable = payload ? !payload.latestPublished : false;
-  const noDraftNoticeShownRef = React.useRef(false);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.sessionStorage.getItem(ENTRY_STORAGE_KEY) as EntryChoice | null;
-    if (stored === "create" || stored === "edit") {
-      setEntryChoice(stored);
-    }
-  }, []);
-
   React.useEffect(() => {
     if (!hasChanges) markPristine();
     else markDirty();
@@ -399,6 +387,14 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
     void load();
   }, [load]);
 
+  React.useEffect(() => {
+    if (entryChoice !== null) return;
+    if (!payload) return;
+    if (payload.working) {
+      setEntryChoice("edit");
+    }
+  }, [entryChoice, payload]);
+
   const hydrateFromChoice = React.useCallback(
     (choice: EntryChoice, data: BuilderPayload | null) => {
       if (!data) return;
@@ -407,75 +403,53 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
       setHasChanges(false);
       setSearch("");
 
-      if (data.working && data.working.survey.status === "PENDING_REVIEW") {
+      if (choice === "create") {
+        const fallbackTitle =
+          data.latestPublished?.survey.title ??
+          data.working?.survey.title ??
+          "Survey Form";
+        setQuestions([]);
+        setActiveSurvey({
+          status: "LOCAL",
+          surveyId: null,
+          title: fallbackTitle,
+        });
+        return;
+      }
+
+      if (data.working) {
         const mapped = data.working.questions.map(mapServerQuestion);
         setQuestions(renumber(mapped));
         const survey = data.working.survey;
-        setActiveSurvey({
-          status: "PENDING_REVIEW",
-          surveyId: survey.id,
-          title: survey.title,
-          submittedAt: survey.submitted_for_review_at,
-          submittedBy: survey.submitted_by?.name ?? null,
-        });
-        if (choice == "edit") {
-          setEntryChoice("edit");
+        if (survey.status === "PENDING_REVIEW") {
+          setActiveSurvey({
+            status: "PENDING_REVIEW",
+            surveyId: survey.id,
+            title: survey.title,
+            submittedAt: survey.submitted_for_review_at,
+            submittedBy: survey.submitted_by?.name ?? null,
+          });
+        } else {
+          setActiveSurvey({
+            status: "DRAFT",
+            surveyId: survey.id,
+            title: survey.title,
+          });
         }
         return;
       }
 
-      if (choice !== "edit") {
-        if (data.working) {
-          noDraftNoticeShownRef.current = false;
-          const mapped = data.working.questions.map(mapServerQuestion);
-          setQuestions(renumber(mapped));
-          const survey = data.working.survey;
-          if (survey.status === "PENDING_REVIEW") {
-            setActiveSurvey({
-              status: "PENDING_REVIEW",
-              surveyId: survey.id,
-              title: survey.title,
-              submittedAt: survey.submitted_for_review_at,
-              submittedBy: survey.submitted_by?.name ?? null,
-            });
-          } else {
-            setActiveSurvey({
-              status: "DRAFT",
-              surveyId: survey.id,
-              title: survey.title,
-            });
-          }
-        } else if (data.latestPublished) {
-          const mapped = data.latestPublished.questions.map(cloneFromPublished);
-          setQuestions(renumber(mapped));
-          setActiveSurvey({
-            status: "LOCAL",
-            surveyId: null,
-            title: data.latestPublished.survey.title,
-          });
-          if (!noDraftNoticeShownRef.current) {
-            toast.info("No draft in progress", {
-              description: "We cloned the latest published survey so you can start a new draft.",
-            });
-            noDraftNoticeShownRef.current = true;
-          }
-        } else {
-          setQuestions([]);
-          setActiveSurvey({ status: "LOCAL", surveyId: null, title: "Survey Form" });
-        }
+      if (data.latestPublished) {
+        const cloned = data.latestPublished.questions.map(cloneFromPublished);
+        setQuestions(renumber(cloned));
+        setActiveSurvey({
+          status: "LOCAL",
+          surveyId: null,
+          title: data.latestPublished.survey.title,
+        });
       } else {
-        if (data.latestPublished) {
-          const cloned = data.latestPublished.questions.map(cloneFromPublished);
-          setQuestions(renumber(cloned));
-          setActiveSurvey({
-            status: "LOCAL",
-            surveyId: null,
-            title: data.latestPublished.survey.title,
-          });
-        } else {
-          setQuestions([]);
-          setActiveSurvey({ status: "LOCAL", surveyId: null, title: "Survey Form" });
-        }
+        setQuestions([]);
+        setActiveSurvey({ status: "LOCAL", surveyId: null, title: "Survey Form" });
       }
     },
     []
@@ -539,9 +513,6 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
   const rememberChoice = React.useCallback(
     async (choice: EntryChoice) => {
       setEntryChoice(choice);
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(ENTRY_STORAGE_KEY, choice);
-      }
       try {
         await fetch("/api/admin/questions/question-builder", {
           method: "POST",
@@ -556,9 +527,6 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
   );
 
   const resetModeState = React.useCallback(() => {
-    if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(ENTRY_STORAGE_KEY);
-    }
     setEntryChoice(null);
     setActiveSurvey(null);
     setQuestions([]);
@@ -569,6 +537,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
 
   const handleModeSelect = React.useCallback(
     (mode: EntryChoice) => {
+      if (builderLocked) return;
       if (mode === "create" && noPublishedAvailable) return;
       if (entryChoice === mode && !selectionNeeded) return;
       if (hasChanges && !builderLocked) {
@@ -581,6 +550,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
   );
 
   const handleResetMode = React.useCallback(() => {
+    if (builderLocked) return;
     if (!selectionNeeded && hasChanges && !builderLocked) {
       setPendingConfirm({ kind: "mode-reset" });
       return;
@@ -878,41 +848,44 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                 <Button
                   type="button"
                   size="sm"
-                  variant={entryChoice === "create" ? "default" : "ghost"}
-                  className={cn(
-                    "h-8 rounded-none px-3 text-xs font-medium",
-                    "first:rounded-l-md last:rounded-r-md"
-                  )}
-                  disabled={noPublishedAvailable}
-                  title={
-                    noPublishedAvailable
-                      ? "A published survey is required before creating a new version."
-                      : undefined
-                  }
-                  onClick={() => handleModeSelect("create")}
-                >
-                  Create New
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
                   variant={entryChoice === "edit" ? "default" : "ghost"}
                   className={cn(
                     "h-8 rounded-none px-3 text-xs font-medium",
                     "first:rounded-l-md last:rounded-r-md"
                   )}
+                  disabled={builderLocked}
                   onClick={() => handleModeSelect("edit")}
                 >
                   Edit Current
                 </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={entryChoice === "create" ? "default" : "ghost"}
+                  className={cn(
+                    "h-8 rounded-none px-3 text-xs font-medium",
+                    "first:rounded-l-md last:rounded-r-md"
+                  )}
+                  disabled={builderLocked || noPublishedAvailable}
+                  title={
+                    noPublishedAvailable
+                      ? "A published survey is required before creating a new version."
+                    : undefined
+                  }
+                  onClick={() => handleModeSelect("create")}
+                >
+                  Create New
+                </Button>
               </div>
-              <button
-                type="button"
-                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-                onClick={handleResetMode}
-              >
-                Change mode
-              </button>
+              {!builderLocked ? (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+                  onClick={handleResetMode}
+                >
+                  Change mode
+                </button>
+              ) : null}
             </div>
           )}
 
@@ -1191,7 +1164,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                                     }
                                   }}
                                   className={cn(
-                                    "h-8 w-16 text-center",
+                                    "h-8 w-16 text-center border-2 border-primary/30 shadow-lg",
                                     attemptedSubmit && fieldErrors?.displayOrder
                                       ? "border-destructive focus-visible:ring-destructive"
                                       : ""
@@ -1215,6 +1188,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                                   }))
                                 }
                                 className={cn(
+                                  "border-2 border-primary/30 shadow-lg",
                                   attemptedSubmit && fieldErrors?.questionKey
                                     ? "border-destructive focus-visible:ring-destructive"
                                     : ""
@@ -1238,7 +1212,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                                   }))
                                 }
                                 className={cn(
-                                  "min-h-[72px]",
+                                  "min-h-[72px] border-2 border-primary/30 shadow-lg",
                                   attemptedSubmit && fieldErrors?.prompt
                                     ? "border-destructive focus-visible:ring-destructive"
                                     : ""
@@ -1258,7 +1232,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                                 }}
                                 disabled={!canEdit}
                               >
-                                <SelectTrigger>
+                                <SelectTrigger className="border-2 border-primary/30 shadow-lg">
                                   <SelectValue placeholder="Select a type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1275,7 +1249,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                             <td className="px-3 py-3">
                               <div className="flex flex-col items-start gap-1">
                                 <Checkbox
-                                  className="shadow-2xl"
+                                  className="border-2 border-primary/30 shadow-lg"
                                   id={requiredId}
                                   aria-label="Required question"
                                   checked={question.required}
@@ -1306,7 +1280,7 @@ export default function QuestionsBuilder({ highlightRows = true }: QuestionsBuil
                                     helpText: event.target.value,
                                   }))
                                 }
-                                className="min-h-[72px]"
+                                className="min-h-[72px] border-2 border-primary/30 shadow-lg"
                               />
                             </td>
                           ) : null}

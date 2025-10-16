@@ -312,19 +312,20 @@ function DataTable<T extends Record<string, unknown>>({
   // ----- Export (two-step) -----
   const [exportOpen, setExportOpen] = React.useState(false); // Step 1: preset picker
   const [confirmOpen, setConfirmOpen] = React.useState(false); // Step 2: confirmation
-  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90";
+  type ExportPreset = "FOLLOW_FILTER" | "LAST_7" | "LAST_30" | "LAST_90" | "LAST_365";
   const [exportPreset, setExportPreset] = React.useState<ExportPreset>("FOLLOW_FILTER");
-  type ExportFormat = "CSV" | "PRINTABLE";
+  type ExportFormat = "CSV" | "PDF";
   const [exportFormat, setExportFormat] = React.useState<ExportFormat>("CSV");
   const PRESET_LABEL: Record<ExportPreset, string> = {
-    FOLLOW_FILTER: "Follow the Custom Filter",
+    FOLLOW_FILTER: "Custom (use current filters)",
     LAST_7: "Last 7 days",
     LAST_30: "Last 30 days",
     LAST_90: "Last 3 months",
+    LAST_365: "Last 12 months",
   };
   const FORMAT_LABEL: Record<ExportFormat, string> = {
-    CSV: "CSV file",
-    PRINTABLE: "Printable table (PDF via print dialog)",
+    CSV: "CSV (.csv)",
+    PDF: "PDF (.pdf)",
   };
 
   const visibleColumns = React.useMemo(
@@ -424,7 +425,14 @@ function DataTable<T extends Record<string, unknown>>({
     if (p === "FOLLOW_FILTER") return null;
     const today = phTodayYMD();
     const endMs = phEndOfDayUTCms(today);
-    const days = p === "LAST_7" ? 7 : p === "LAST_30" ? 30 : 90; // ~3 months
+    const days =
+      p === "LAST_7"
+        ? 7
+        : p === "LAST_30"
+        ? 30
+        : p === "LAST_90"
+        ? 90
+        : 365;
     const startDate = new Date(new Date(`${today}T00:00:00+08:00`).getTime());
     startDate.setDate(startDate.getDate() - (days - 1)); // inclusive window
     const y = startDate.getFullYear();
@@ -697,6 +705,8 @@ function DataTable<T extends Record<string, unknown>>({
         return "last30d";
       case "LAST_90":
         return "last3mo";
+      case "LAST_365":
+        return "last12mo";
       default:
         return "custom";
     }
@@ -787,8 +797,7 @@ function DataTable<T extends Record<string, unknown>>({
               <AlertDialogHeader>
                 <AlertDialogTitle>Export review queue</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Choose the time window and format. “Follow the Custom Filter” uses the current table
-                  filter & sort.
+                  Choose the time window and format. "Custom" uses the current table filters & sort.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
@@ -800,10 +809,11 @@ function DataTable<T extends Record<string, unknown>>({
                       <SelectValue placeholder="Select range" />
                     </SelectTrigger>
                     <SelectContent className="border-2 border-primary/30 shadow-lg">
-                      <SelectItem value="FOLLOW_FILTER">Follow the Custom Filter</SelectItem>
+                      <SelectItem value="FOLLOW_FILTER">Custom (use current filters)</SelectItem>
                       <SelectItem value="LAST_7">Last 7 days</SelectItem>
                       <SelectItem value="LAST_30">Last 30 days</SelectItem>
                       <SelectItem value="LAST_90">Last 3 months</SelectItem>
+                      <SelectItem value="LAST_365">Last 12 months</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -816,7 +826,7 @@ function DataTable<T extends Record<string, unknown>>({
                     </SelectTrigger>
                     <SelectContent className="border-2 border-primary/30 shadow-lg">
                       <SelectItem value="CSV">CSV (.csv)</SelectItem>
-                      <SelectItem value="PRINTABLE">Printable table (PDF via print)</SelectItem>
+                      <SelectItem value="PDF">PDF (.pdf)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

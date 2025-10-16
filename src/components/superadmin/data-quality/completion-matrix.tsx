@@ -247,7 +247,7 @@ export default function CompletionMatrix() {
   const empty = !loading && (!qs.length || !subs.length);
 
   return (
-    <Card className="md:col-span-6 h-120 rounded-xl border shadow-sm bg-card px-4">
+    <Card className="md:col-span-6 h-100 rounded-xl border shadow-sm bg-card px-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Completion Matrix</CardTitle>
