@@ -1,6 +1,7 @@
 // src/app/api/admin/dashboard/section-cards/route.ts
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/database";
+import { readKpiThresholds } from "@/lib/kpi-thresholds";
 import type { RowDataPacket } from "mysql2";
 
 type RangeKey = "7d" | "30d" | "90d" | "custom";
@@ -126,6 +127,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Invalid parameters" }, { status: 400 });
   }
 
+  const kpiThresholds = await readKpiThresholds();
+
   const { from, to, key: rangeKey } = windowYmd;
 
   // previous window = same number of days, immediately before current
@@ -229,25 +232,33 @@ export async function GET(req: Request) {
           key: "overall_satisfaction",
           title: "Satisfaction",
           value: round1(overallPct.curr),
-          unit: "%", delta_pp: round1(pctDelta(overallPct.curr, overallPct.prev)),
+          unit: "%",
+          delta_pp: round1(pctDelta(overallPct.curr, overallPct.prev)),
+          alertThreshold: kpiThresholds.overall_satisfaction,
         },
         {
           key: "order_accuracy",
           title: "Accuracy",
           value: round1(accuracyPct.curr),
-          unit: "%", delta_pp: round1(pctDelta(accuracyPct.curr, accuracyPct.prev)),
+          unit: "%",
+          delta_pp: round1(pctDelta(accuracyPct.curr, accuracyPct.prev)),
+          alertThreshold: kpiThresholds.order_accuracy,
         },
         {
           key: "staff_service",
           title: "Service",
           value: round1(servicePct.curr),
-          unit: "%", delta_pp: round1(pctDelta(servicePct.curr, servicePct.prev)),
+          unit: "%",
+          delta_pp: round1(pctDelta(servicePct.curr, servicePct.prev)),
+          alertThreshold: kpiThresholds.staff_service,
         },
         {
           key: "food_quality",
           title: "Food Quality",
           value: round1(qualityPct.curr),
-          unit: "%", delta_pp: round1(pctDelta(qualityPct.curr, qualityPct.prev)),
+          unit: "%",
+          delta_pp: round1(pctDelta(qualityPct.curr, qualityPct.prev)),
+          alertThreshold: kpiThresholds.food_quality,
         },
         {
           key: "receipts_issued",
@@ -260,7 +271,9 @@ export async function GET(req: Request) {
           key: "response_rate",
           title: "Response Rate",
           value: round1(responseRateCurr),
-          unit: "%", delta_pp: round1(responseRateDeltaPP),
+          unit: "%",
+          delta_pp: round1(responseRateDeltaPP),
+          alertThreshold: kpiThresholds.response_rate,
         },
       ],
     };

@@ -1,3 +1,5 @@
+import CompletionMatrix from "@/components/superadmin/data-quality/completion-matrix";
+import RequiredCoverage from "@/components/superadmin/data-quality/required-coverage";
 import { SectionCards } from "@/components/superadmin/governance/super-tiles";
 import ReviewQueue from "@/components/tables/review-queue";
 
@@ -10,7 +12,8 @@ export default function GovernancePage() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4 px-6 md:grid-cols-8">
-            <ReviewQueue/>
+              <CompletionMatrix/>
+              <RequiredCoverage/>
         </div>
       </div>
     )

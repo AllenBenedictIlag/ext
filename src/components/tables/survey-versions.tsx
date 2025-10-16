@@ -530,7 +530,7 @@ export default function SurveyVersions({ highlightRows = true }: Props) {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <Card className="md:col-span-8 border bg-card shadow-sm">
+      <Card className="md:col-span-8 border bg-card shadow-sm px-4">
         <CardHeader>
           <CardTitle>Survey Versions</CardTitle>
           <CardDescription>

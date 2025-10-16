@@ -162,7 +162,7 @@ export default function SubmissionsPattern() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Submission Patterns</CardTitle>
-          <CardDescription>Heatmap — Day of week × Hour (Manila)</CardDescription>
+          <CardDescription>Heatmap — Day of week × Hour</CardDescription>
         </div>
       </CardHeader>
 

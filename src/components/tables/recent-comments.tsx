@@ -1089,12 +1089,12 @@ export default function RecentComments() {
   return (
     <TooltipProvider delayDuration={150}>
       <Card className="md:col-span-8 rounded-xl border bg-card px-4 shadow-md">
-        <CardHeader className="pb-3">
+        {/* <CardHeader className="pb-3">
           <CardTitle className="text-xl tracking-normal">Recent Comments</CardTitle>
           <CardDescription className="text-sm">
             A live list of recent comment snippets, showing date and a link to the submission. This keeps managers grounded in real voices—not just metrics.
           </CardDescription>
-        </CardHeader>
+        </CardHeader> */}
 
         <CardContent>
           {loading && serverRows == null ? (

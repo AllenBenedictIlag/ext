@@ -1117,14 +1117,6 @@ export default function SubmissionsTable({
 
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card shadow-sm px-4">
-      <CardHeader>
-        <CardTitle className="tracking-normal">Submissions Table</CardTitle>
-        <CardDescription>
-          It anchors every trend line back to actual raw records. Use this to
-          investigate anomalies—e.g., if Response Rate drops, drill into when
-          receipts were redeemed and at what hours submissions clustered.
-        </CardDescription>
-      </CardHeader>
       <CardContent className="pb-4">
         <SubmissionsRemoteData>
           {(rows, loading, error) => {

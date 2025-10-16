@@ -4,6 +4,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardDescription,
@@ -27,6 +28,7 @@ type Kpi =
       value: number | null;
       unit: "%";
       delta_pp: number | null;
+      alertThreshold?: number | null;
     }
   | {
       key: "receipts_issued";
@@ -41,6 +43,7 @@ type Kpi =
       value: number | null;
       unit: "%";
       delta_pp: number | null;
+      alertThreshold?: number | null;
     };
 
 type ApiPayload = {
@@ -245,6 +248,17 @@ export function SectionCards(props: Props) {
               ? formatMaybePct(kpi.value)
               : formatCount((kpi as Extract<Kpi, { unit: "count" }>).value);
 
+          const threshold =
+            "alertThreshold" in kpi && typeof (kpi as any).alertThreshold === "number"
+              ? (kpi as any).alertThreshold
+              : null;
+          const shouldAlert =
+            kpi.unit === "%" &&
+            threshold != null &&
+            kpi.value != null &&
+            !Number.isNaN(kpi.value) &&
+            kpi.value < threshold;
+
           const { delta, TrendIcon } = (() => {
             if (kpi.key === "receipts_issued") {
               const d = (kpi as Extract<Kpi, { key: "receipts_issued" }>).delta_pct;
@@ -267,8 +281,11 @@ export function SectionCards(props: Props) {
               <CardHeader>
                 <CardTitle>{title}</CardTitle>
                 <CardTitle
-                  style={{ color }}
-                  className="text-3xl font-semibold tabular-nums @[250px]/card:text-3xl"
+                  style={shouldAlert ? undefined : { color }}
+                  className={cn(
+                    "text-3xl font-semibold tabular-nums @[250px]/card:text-3xl",
+                    shouldAlert && "text-red-600 dark:text-red-400"
+                  )}
                 >
                   {valueStr}
                 </CardTitle>

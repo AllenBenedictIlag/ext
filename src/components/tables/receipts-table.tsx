@@ -1110,14 +1110,14 @@ export default function ReceiptsTable({
 }: ReceiptsTableCardProps) {
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card shadow-sm px-4">
-      <CardHeader>
+      {/* <CardHeader>
         <CardTitle className="tracking-normal">Receipts Table</CardTitle>
         <CardDescription>
           Receipts are the root of your feedback system. Use this to reconcile
           totals: issued, used, and expired unused. If response rates look off,
           check how many receipts were issued and how many expired without use.
         </CardDescription>
-      </CardHeader>
+      </CardHeader> */}
       <CardContent className="pb-4">
         <ReceiptsRemoteData>
           {(rows, loading, error) => {

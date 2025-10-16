@@ -1014,17 +1014,17 @@ export type AnswersTableCardProps = { highlightRows?: boolean };
 export default function AnswersTable({ highlightRows = true }: AnswersTableCardProps) {
   return (
     <Card className="md:col-span-8 rounded-xl border bg-card shadow-sm px-4">
-      <CardHeader>
+      {/* <CardHeader>
         <CardTitle className="tracking-normal">Answers</CardTitle>
-        {/* <CardDescription>
+        <CardDescription>
           <span className="block">
             <strong>Why important:</strong> It’s the rawest level of truth — every survey answer as captured. Without this, you can’t debug why a metric looks wrong.
           </span>
           <span className="block">
             <strong>Use:</strong> Essential for ad-hoc analysis… and to detect bad data (e.g., required answers blank).
           </span>
-        </CardDescription> */}
-      </CardHeader>
+        </CardDescription>
+      </CardHeader> */}
       <CardContent className="pb-4">
         <AnswersRemoteData>
           {(rows, loading, error) => {
