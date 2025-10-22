@@ -30,7 +30,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   }>({
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/images/coffee-black.png",
+    avatar: "/images/black.png",
   });
 
   const [sections, setSections] = React.useState(SECTIONS_ADMIN);
@@ -41,7 +41,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       setUser({
         name: displayName(cached),
         email: cached.email,
-        avatar: "/images/coffee-black.png",
+        avatar: "/images/black.png",
       });
       setSections(cached.role === "SUPER_ADMIN" ? SECTIONS_SUPERADMIN : SECTIONS_ADMIN);
       return;
@@ -57,7 +57,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         setUser({
           name: displayName,
           email: u.email,
-          avatar: "/images/coffee-black.png",
+          avatar: "/images/black.png",
         });
         setSections(u.role === "SUPER_ADMIN" ? SECTIONS_SUPERADMIN : SECTIONS_ADMIN);
         return; // done
@@ -76,7 +76,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           setUser({
             name: displayName,
             email: u.email,
-            avatar: "/images/coffee-black.png",
+            avatar: "/images/black.png",
           });
           setSections(u.role === "SUPER_ADMIN" ? SECTIONS_SUPERADMIN : SECTIONS_ADMIN);
 
@@ -123,7 +123,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           setUser({
             name: displayName(next),
             email: next.email,
-            avatar: "/images/coffee-black.png",
+            avatar: "/images/black.png",
           });
           setSections(next.role === "SUPER_ADMIN" ? SECTIONS_SUPERADMIN : SECTIONS_ADMIN);
         }
@@ -142,16 +142,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="#" className="flex items-center gap-2 sm:gap-2.5">
                 <img
-                  src="/images/coffee-black.png"
+                  src="/images/black.png"
                   alt=""
                   className="dark:hidden object-contain w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
                 />
                 <img
-                  src="/images/coffee-white.png"
+                  src="/images/white.png"
                   alt=""
                   className="hidden dark:block object-contain w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
                 />
-                <span className="font-semibold text-sm sm:text-base md:text-lg">Coffee Craves</span>
+                <span className="font-semibold text-sm sm:text-base md:text-lg">EMC</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
